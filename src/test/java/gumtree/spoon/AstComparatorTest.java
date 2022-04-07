@@ -67,6 +67,19 @@ public class AstComparatorTest {
 		Diff editScript = diff.compare(c1, c2);
 		assertTrue(editScript.getRootOperations().size() == 1);
 	}
+	@Test
+	public void testAnalyzeStringString2() {
+		String c1 = "import example.Example;" + "public class ExampleClass extends BaseType implements AnInterface {" + "};";
+
+		String c2 = "import example.Example;" + "public class ExampleClass implements BaseType, AnInterface {" + "};";
+
+		AstComparator diff = new AstComparator();
+		Diff editScript = diff.compare(c1, c2);
+		for (Operation op : editScript.getAllOperations()) {//NO AST change !!!
+			System.out.println(op);
+		}
+//		assertTrue(editScript.getRootOperations().size() == 1);
+	}
 
 	@Test
 	public void exampleInsertAndUpdate() throws Exception{
@@ -122,6 +135,18 @@ public class AstComparatorTest {
 		AstComparator diff = new AstComparator();
 		File fl = new File("src/test/resources/examples/test4/CommandLine1.java");
 		File fr = new File("src/test/resources/examples/test4/CommandLine2.java");
+
+		Diff result = diff.compare(fl,fr);
+		List<Operation> actions = result.getRootOperations();
+		assertEquals(actions.size(), 1);
+		assertTrue(result.containsOperation(OperationKind.Insert, "Method","resolveOptionNew"));
+	}
+
+	@Test
+	public void exampleInsert2() throws Exception{
+		AstComparator diff = new AstComparator();
+		File fl = new File("src/test/resources/Test.java");
+		File fr = new File("src/test/resources/Test2.java");
 
 		Diff result = diff.compare(fl,fr);
 		List<Operation> actions = result.getRootOperations();
@@ -412,6 +437,22 @@ public class AstComparatorTest {
 		assertNotNull(elem);
 		assertNotNull(elem.getParent(CtThrow.class));
 
+	}
+
+	@Test
+	public void test_jiajun() throws Exception {
+		AstComparator diff = new AstComparator();
+		File fl = new File("src/test/resources/Path.java");
+		File fr = new File("src/test/resources/Path2.java");
+		Diff result = diff.compare(fl, fr);
+
+		System.out.println(result);
+//
+//		List<Operation> operations = result.getAllOperations();
+//		for(Operation operation : operations) {
+//			System.out.println(operation.getAction());
+//			System.out.println(operation.getSrcNode());
+//		}
 	}
 
 	@Test
