@@ -4,10 +4,11 @@ package patch;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.declaration.CtElement;
 
+import java.util.List;
 import java.util.Set;
 
 public class GroundTruth{
-    private Set<CtExpression> nodes = null; //actually one
+    private List<CtElement> nodes = null; //actually one
     private String location = "";
     private String name = "";
     private int startLineNumber;
@@ -34,11 +35,11 @@ public class GroundTruth{
         setExp(name);
     }
 
-    public Set<CtExpression> getNodes() {
+    public List<CtElement> getNodes() {
         return nodes;
     }
 
-    public void setNodes(Set<CtExpression> nodes) {
+    public void setNodes(List<CtElement> nodes) {
         this.nodes = nodes;
     }
 

@@ -262,4 +262,17 @@ public class FileTools {
         }
         return paths;
     }
+
+    public static List<String> getDirNames(String fileDir) {
+        List<String> paths = new ArrayList<>();
+        //读取输入路径的文件
+        File[] list = new File(fileDir).listFiles();
+        for(File file : list)
+        {
+            if (file.isDirectory()) {
+                paths.add(file.getName());
+            }
+        }
+        return paths;
+    }
 }

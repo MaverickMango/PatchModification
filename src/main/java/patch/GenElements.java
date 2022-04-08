@@ -8,14 +8,12 @@ import spoon.reflect.declaration.CtType;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class GetInfoFromPatch {
+public class GenElements {
     private static final String buggyFileDir = "/home/liu/Desktop/groundtruth/buggyfiles/";
-    private static final String gtFileDir = "/home/liu/Desktop/groundtruth/";
-    private static final String patchDir = "/home/liu/Desktop/Patch-jGenprog/";
+    private static final String gtFileDir = "/home/liu/Desktop/groundtruth/groundtruth/";
 
     public static List<CtStatement> getStmts(String buggyfilePath, int pos) throws Exception {
         AstComparator comparator = new AstComparator();
@@ -37,10 +35,10 @@ public class GetInfoFromPatch {
         return stmts;
     }
 
-    public static Set<CtExpression> getNodes(List<CtStatement> stmts, String name) {
-        VariableFilter filter = new VariableFilter();
+    public static List<CtElement> getNodes(List<CtStatement> stmts, String name) {
+        ExpressionFilter filter = new ExpressionFilter();
         filter.set_name(name);
-        Set<CtExpression> list = new HashSet<>();
+        List<CtElement> list = new ArrayList<>();
         for (CtStatement stmt :stmts) {
             list.addAll(stmt.getElements(filter));
         }
@@ -49,7 +47,7 @@ public class GetInfoFromPatch {
 
     public static void setGTElements(String project, int version) throws Exception {
         String lowerP = project.toLowerCase();
-        String buggyFileDir = GetInfoFromPatch.buggyFileDir + lowerP + "/" + lowerP + "_" + version + "_buggy";
+        String buggyFileDir = GenElements.buggyFileDir + lowerP + "/" + lowerP + "_" + version + "_buggy";
         List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
         List<GroundTruth> gts =  ReadGT.getGTs(gtFileDir + lowerP + ".csv", version);
         AstComparator comparator = new AstComparator();
@@ -71,12 +69,35 @@ public class GetInfoFromPatch {
                 stamentFilter.set_positions(poses);
                 List<CtStatement> stmts = type.getElements(stamentFilter);
                 String name = gt.getName();
-                Set<CtExpression> nodes = getNodes(stmts, name);
-                System.out.println(nodes);
-                assert nodes.size() != 0;
+                List<CtElement> nodes = getNodes(stmts, name);
+                if (nodes.size() == 0) {
+                    System.out.println(project + " " + version);
+                }
+                nodes = removeSame(nodes);
+//                assert nodes.size() != 0;
                 gt.setNodes(nodes);
             }
         }
+    }
+
+    public static List<CtElement> removeSame(List<CtElement> nodes) {
+        List<CtElement> newOne = new ArrayList<>();
+        for (CtElement exp :nodes) {
+            int pos = exp.getPosition().getLine();
+            if (!hasSame(newOne, pos)) {
+                newOne.add(exp);
+            }
+        }
+        return newOne;
+    }
+
+    public static boolean hasSame(List<CtElement> list, int line) {
+        for (CtElement exp :list) {
+            int pos = exp.getPosition().getLine();
+            if (pos == line)
+                return true;
+        }
+        return false;
     }
 
 //    public static PatchInfo getPatchInfo() {

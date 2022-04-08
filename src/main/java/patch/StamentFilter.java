@@ -29,7 +29,7 @@ public class StamentFilter extends AbstractFilter<CtStatement> {
     @Override
     public boolean matches(CtStatement element) {
         if ((element instanceof CtStatementImpl && !(element instanceof CtBlock))
-                || (element instanceof CtAbstractInvocation && !element.isImplicit())) {
+                ) {//|| (element instanceof CtAbstractInvocation && !element.isImplicit())
             int start = 0;
             int end = 0;
             try {

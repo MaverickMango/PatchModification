@@ -4,9 +4,11 @@ import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtSuperAccess;
 import spoon.reflect.code.CtThisAccess;
 import spoon.reflect.code.CtTypeAccess;
+import spoon.reflect.declaration.CtElement;
+import spoon.reflect.declaration.CtVariable;
 import spoon.reflect.visitor.filter.AbstractFilter;
 
-public class VariableFilter extends AbstractFilter<CtExpression> {
+public class ExpressionFilter extends AbstractFilter<CtElement> {
     private String _name;
 
     public void set_name(String name) {
@@ -29,16 +31,19 @@ public class VariableFilter extends AbstractFilter<CtExpression> {
     }
 
     @Override
-    public boolean matches(CtExpression element) {
-        if (element instanceof CtThisAccess || element instanceof CtSuperAccess
-                || element instanceof CtTypeAccess)
-            return false;
-        String str = "";
-        try {
-            str = element.getOriginalSourceFragment().getSourceCode();
-        } catch (Exception e) {
-            e.printStackTrace();
+    public boolean matches(CtElement element) {
+        if (element instanceof CtExpression || element instanceof CtVariable) {
+            if (element instanceof CtThisAccess || element instanceof CtSuperAccess
+                    || element instanceof CtTypeAccess)
+                return false;
+            String str = "";
+            try {
+                str = element.getOriginalSourceFragment().getSourceCode();
+            } catch (Exception e) {
+                str = element.toString();
+            }
+            return compare(str);
         }
-        return compare(str);
+        return false;
     }
 }
