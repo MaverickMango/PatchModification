@@ -47,6 +47,17 @@ public class FilterWithGT {
         return actions;
     }
 
+    public List<Operation> getActionsWithFile(String buggyFileDir, String repairFilePath) throws Exception {
+        List<Operation> actions = new ArrayList<>();
+        AstComparator diff = new AstComparator();
+        List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
+        for (String bu :buggyFilePath) {
+            Diff result = diff.compare(new File(bu),new File(repairFilePath));
+            actions.addAll(result.getRootOperations());
+        }
+        return actions;
+    }
+
     public boolean filterWithGT(List<Operation> actions) {
         if (ReadGT.GTs.size() == 0) {
             return false;

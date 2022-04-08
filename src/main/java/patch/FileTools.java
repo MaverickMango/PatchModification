@@ -16,80 +16,18 @@ public class FileTools {
         }
     }
 
-    /**
-     * 去除因果图当中由于predicates transform重复导致的变量重复
-     * @param filename causalMap.txt文件所在路径
-     */
-    public static void removeRepet(String filename) {
-        List<List<String>> causalMap = createCausalMap(filename);
-        assert causalMap != null;
-        for (int i = 0; i< causalMap.size(); i ++) {
-            List<String> list = causalMap.get(i);
-            String last = list.get(0);
-            List<Integer> index = new ArrayList<>();
-            for (int j = 1; j < list.size(); j++) {
-                if (!last.equals(list.get(j))) {
-                    index.add(j);
-                }
-                last = list.get(j);
-            }
-            List<String> newList = new ArrayList<>();
-            newList.add(list.get(0));
-            for (int key : index) {
-                newList.add(list.get(key));
-            }
-            causalMap.set(i, newList);
-        }
-        writecausalMap(causalMap, filename);
-    }
 
-    /**
-     * 把因果图列表写入文件
-     * @param causalMap 因果图列表
-     * @param filename 写入文件路径
-     */
-    public static void writecausalMap(List<List<String>> causalMap, String filename) {
-        StringBuilder stringBuilder = new StringBuilder();
-        for (List<String> list:causalMap) {
-            for (String str:list) {
-                stringBuilder.append(str).append(",");
-            }
-            stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-            stringBuilder.append("\n");
-        }
-
+    public static void writeToFile(String content, String filename) {
         BufferedOutputStream buff =null;
         try {
             buff = new BufferedOutputStream(new FileOutputStream(filename));
-            buff.write(stringBuilder.toString().getBytes(StandardCharsets.UTF_8));
+            buff.write(content.getBytes(StandardCharsets.UTF_8));
             buff.flush();
             buff.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
-    public static List<List<String>> createCausalMap(String filename) {
-        List<List<String>> causalMap = new ArrayList<>();
-
-        BufferedReader reader;
-        try {
-            // Change name of data file accordingly
-            reader = new BufferedReader(new FileReader(filename));
-            String line = reader.readLine();
-            while (line != null) {
-                String[] row = line.split(",");
-                causalMap.add(Arrays.asList(row));
-                line = reader.readLine();
-            }
-            reader.close();
-            return causalMap;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
 
     public static char[] readFileByChars(String fileName) {
         File file = new File(fileName);
@@ -275,4 +213,5 @@ public class FileTools {
         }
         return paths;
     }
+
 }

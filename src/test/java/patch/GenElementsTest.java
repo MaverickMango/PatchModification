@@ -12,9 +12,9 @@ import spoon.reflect.reference.*;
 import spoon.reflect.visitor.CtVisitor;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.annotation.Annotation;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class GenElementsTest {
 
@@ -592,7 +592,8 @@ public class GenElementsTest {
     @Test
     public void testSimFix() throws Exception {
         String buggyBase = "/home/liu/Desktop/groundtruth/buggyfiles/";
-        String repairBase = "/home/liu/Desktop/SimFix-master/final/result/patch/";
+//        String repairBase = "/home/liu/Desktop/SimFix-master/final/result/patch/";
+        String repairBase = "src/test/resources/SimFix/result/patch/";
         List<String> projs = FileTools.getDirNames(repairBase);
         StringBuilder stringBuilder = new StringBuilder("filter:\n");
         int i = 0, j = 0;
@@ -601,17 +602,87 @@ public class GenElementsTest {
             List<String> versions = FileTools.getDirNames(repairBase + proj);
             for (String version :versions) {
                 i ++;
-                System.out.println(proj + version);
+//                System.out.println(proj + version);
                 String buggyFileDir = buggyBase + proj +
                         "/" + proj + "_" + version + "_buggy";
                 String repair = repairBase + proj + "/" + version;
+                List<String> repairFilePath = FileTools.getFilePaths(repair, ".java");
+//                for (:
+//                     ) {
+//
+//                }
                 GenElements.setGTElements(proj, Integer.parseInt(version));
                 FilterWithGT filter = new FilterWithGT();
-                boolean flag = filter.filterWithGT(filter.getActions(buggyFileDir, repair));
+                boolean flag = filter.filterWithGT(filter.getActionsWithFile(buggyFileDir, repair));
                 if (flag) {
                     stringBuilder.append(" ").append(version);
                     j ++;
                 }
+            }
+            stringBuilder.append("\n");
+        }
+        System.out.println(stringBuilder);
+        System.out.println("total bugs number: " + i);
+        System.out.println("filter number: " + j);
+    }
+
+    @Test
+    public void testpatchfile() throws IOException {
+        String buggyBase = "/home/liu/Desktop/groundtruth/buggyfiles/";
+        String repairBase = "/home/liu/IdeaProjects/gumtree-spoon-ast-diff/gumtree-spoon-ast-diff/src/test/resources/TBar/FixedBugs/";
+        List<String> proj_versions = FileTools.getDirNames(repairBase);
+        StringBuilder stringBuilder = new StringBuilder("");
+        for (String p_v :proj_versions) {
+            String[] temp = p_v.split("_");
+            assert temp.length >= 2;
+            String proj = temp[0].toLowerCase(Locale.ROOT), version = temp[1];
+            System.out.println(proj + version);
+            String buggyFileDir = buggyBase + proj +
+                    "/" + proj + "_" + version + "_buggy/";
+            String repairDir = repairBase + p_v + "/";
+            CommandUtil.run("cp -r " + buggyFileDir + " " + repairDir + "a");
+            buggyFileDir = repairDir + proj + "_" + version + "_buggy";
+//            String[] commands = new String[3];
+//            commands[0] = "rm -rf " + buggyFileDir;
+//            commands[1] = "mv " + repairDir + "*.txt " + repairDir + p_v + ".patch";
+//            commands[2] = "patch " + repairDir + "*.java " + repairDir + "*.patch";
+//            CommandUtil.run(commands[0]);
+////            CommandUtil.run(commands[1]);
+////            CommandUtil.run(commands[2]);
+//            stringBuilder.append(commands[1]).append("\n");
+//            stringBuilder.append(commands[2]).append("\n\n");
+        }
+//        FileTools.writeToFile(stringBuilder.toString(), "/home/liu/Desktop/patchdirs");
+    }
+
+    @Test
+    public void testCommand() throws IOException {
+        String res = CommandUtil.run("ls /home/liu/IdeaProjects/gumtree-spoon-ast-diff/gumtree-spoon-ast-diff/src/test/resources/TBar/FixedBugs/Chart_14/*.txt");
+        System.out.println(res);//no result
+    }
+
+    @Test
+    public void testTbar() throws Exception {
+        String buggyBase = "/home/liu/Desktop/groundtruth/buggyfiles/";
+        String repairBase = "src/test/resources/TBar/FixedBugs/";
+        List<String> proj_versions = FileTools.getDirNames(repairBase);
+        StringBuilder stringBuilder = new StringBuilder("filter:\n");
+        int i = 0, j = 0;
+        for (String p_v :proj_versions) {
+            String[] temp = p_v.split("_");
+            assert temp.length >= 2;
+            String proj = temp[0].toLowerCase(Locale.ROOT), version = temp[1];
+            i ++;
+            System.out.println(proj + version);
+            String buggyFileDir = buggyBase + proj +
+                    "/" + proj + "_" + version + "_buggy";
+            String repair = repairBase + p_v + "/" + "";//TODO, patch the buggy file
+            GenElements.setGTElements(proj, Integer.parseInt(version));
+            FilterWithGT filter = new FilterWithGT();
+            boolean flag = filter.filterWithGT(filter.getActions(buggyFileDir, repair));
+            if (flag) {
+                stringBuilder.append(" ").append(p_v);
+                j ++;
             }
             stringBuilder.append("\n");
         }
