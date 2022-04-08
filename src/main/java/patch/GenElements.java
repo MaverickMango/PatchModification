@@ -54,7 +54,8 @@ public class GenElements {
             AstComparator comparator = new AstComparator();
             CtType type = comparator.getCtType(new File(str));
             for (GroundTruth gt :gts) {
-                if (!str.replace("/", ".").contains(gt.getLocation())) {
+                if (!str.replace(".java", "")
+                        .replace("/", ".").endsWith(gt.getLocation())) {
                     continue;
                 }
                 List<Integer> poses = new ArrayList<>();
@@ -74,7 +75,7 @@ public class GenElements {
                 String name = gt.getName();
                 List<CtElement> nodes = getNodes(stmts, name);
                 if (nodes.size() == 0) {
-                    System.out.println(project + " " + version + " [" + name+ "]");
+                    System.err.println(project + " " + version + " [" + name+ "]");
                 }
                 nodes = removeSame(nodes);
 //                assert nodes.size() != 0;

@@ -16,15 +16,16 @@ public class ExpressionFilter extends AbstractFilter<CtElement> {
     }
 
     boolean compare(String str) {
-        if (_name.equals(compactStr(str))) {
+        String name = _name;
+        if (name.startsWith("(") && name.endsWith(")"))
+            name = name.substring(1, name.length() - 1);
+        if (name.equals(compactStr(str))){
             return true;
         }
-        return false;
+        return _name.equals(compactStr(str));
     }
 
     String compactStr(String str) {
-        if (str.startsWith("(") && str.endsWith(")"))
-            str = str.substring(1, str.length() - 1);
         return str.trim().replace(" ", "")
                 .replace("\n", "")
                 .replace("\t", "");
@@ -32,7 +33,7 @@ public class ExpressionFilter extends AbstractFilter<CtElement> {
 
     @Override
     public boolean matches(CtElement element) {
-        if (element instanceof CtExpression || element instanceof CtVariable) {
+        if (element instanceof CtExpression) {
             if (element instanceof CtThisAccess || element instanceof CtSuperAccess
                     || element instanceof CtTypeAccess)
                 return false;
@@ -41,6 +42,7 @@ public class ExpressionFilter extends AbstractFilter<CtElement> {
                 str = element.getOriginalSourceFragment().getSourceCode();
             } catch (Exception e) {
                 str = element.toString();
+//                System.err.println(str);
             }
             return compare(str);
         }

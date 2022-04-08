@@ -91,7 +91,7 @@ public class ReadGT {
             int idx = 0;
             while ((tempString = reader.readLine()) != null) {
                 idx ++;
-                if (idx <= version) {
+                if (!tempString.startsWith(String.valueOf(version))) {
                     continue;
                 }
                 tempString.replace('\r', ' ');
