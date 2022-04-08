@@ -50,10 +50,13 @@ public class GenElements {
         String buggyFileDir = GenElements.buggyFileDir + lowerP + "/" + lowerP + "_" + version + "_buggy";
         List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
         List<GroundTruth> gts =  ReadGT.getGTs(gtFileDir + lowerP + ".csv", version);
-        AstComparator comparator = new AstComparator();
         for (String str :buggyFilePath) {
-            CtType type = comparator.getCtType(new File(buggyFilePath.get(0)));
+            AstComparator comparator = new AstComparator();
+            CtType type = comparator.getCtType(new File(str));
             for (GroundTruth gt :gts) {
+                if (!str.replace("/", ".").contains(gt.getLocation())) {
+                    continue;
+                }
                 List<Integer> poses = new ArrayList<>();
                 if (gt.isOnlyOneLine()) {
                     poses.add(gt.getLinenumber());
@@ -71,7 +74,7 @@ public class GenElements {
                 String name = gt.getName();
                 List<CtElement> nodes = getNodes(stmts, name);
                 if (nodes.size() == 0) {
-                    System.out.println(project + " " + version);
+                    System.out.println(project + " " + version + " [" + name+ "]");
                 }
                 nodes = removeSame(nodes);
 //                assert nodes.size() != 0;
