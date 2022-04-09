@@ -12,7 +12,7 @@ public class CommandUtil {
         try {
             process = Runtime.getRuntime().exec(command);
             try {
-                process.waitFor(1, TimeUnit.SECONDS);
+                process.waitFor(20, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

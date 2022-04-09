@@ -2,7 +2,9 @@ package patch;
 
 import spoon.reflect.code.CtAbstractInvocation;
 import spoon.reflect.code.CtBlock;
+import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtStatement;
+import spoon.reflect.cu.position.NoSourcePosition;
 import spoon.reflect.visitor.filter.AbstractFilter;
 import spoon.support.reflect.code.CtCodeElementImpl;
 import spoon.support.reflect.code.CtStatementImpl;
@@ -29,7 +31,8 @@ public class StamentFilter extends AbstractFilter<CtStatement> {
     @Override
     public boolean matches(CtStatement element) {
         if ((element instanceof CtStatementImpl && !(element instanceof CtBlock))
-                ) {//|| (element instanceof CtAbstractInvocation && !element.isImplicit())
+                || (element instanceof CtInvocation && element.getPosition() != null &&
+                !(element.getPosition() instanceof NoSourcePosition))) {//
             int start = 0;
             int end = 0;
             try {

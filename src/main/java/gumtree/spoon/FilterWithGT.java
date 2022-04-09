@@ -32,11 +32,11 @@ public class FilterWithGT {
         String repair = repairBase + proj + "/" + version;
     }
 
-    public List<Operation> getActions(String buggyFileDir, String repair) throws Exception {
+    public List<Operation> getActions(String buggyFileDir, String repairFileDir) throws Exception {
         List<Operation> actions = new ArrayList<>();
         AstComparator diff = new AstComparator();
         List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
-        List<String> repairFilePath = FileTools.getFilePaths(repair, ".java");
+        List<String> repairFilePath = FileTools.getFilePaths(repairFileDir, ".java");
         assert repairFilePath.size() != 0;
         for (String re :repairFilePath) {
             for (String bu :buggyFilePath) {
@@ -73,7 +73,7 @@ public class FilterWithGT {
             if (op instanceof DeleteOperation) {
                 flag = deleteFilter((DeleteOperation) op);
             }
-            if (flag)
+            if (flag)//todo
                 break;
         }
         return flag;

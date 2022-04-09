@@ -1,9 +1,6 @@
 package patch;
 
-import spoon.reflect.code.CtExpression;
-import spoon.reflect.code.CtSuperAccess;
-import spoon.reflect.code.CtThisAccess;
-import spoon.reflect.code.CtTypeAccess;
+import spoon.reflect.code.*;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtVariable;
 import spoon.reflect.visitor.filter.AbstractFilter;
@@ -33,10 +30,12 @@ public class ExpressionFilter extends AbstractFilter<CtElement> {
 
     @Override
     public boolean matches(CtElement element) {
-        if (element instanceof CtExpression) {
+        if (element instanceof CtExpression || element instanceof CtLocalVariable) {
             if (element instanceof CtThisAccess || element instanceof CtSuperAccess
-                    || element instanceof CtTypeAccess)
+                    )//|| element instanceof CtTypeAccess
                 return false;
+            if (element instanceof CtLocalVariable)
+                element = ((CtLocalVariable) element).getReference();
             String str = "";
             try {
                 str = element.getOriginalSourceFragment().getSourceCode();

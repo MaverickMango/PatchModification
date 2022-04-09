@@ -48,7 +48,8 @@ public class GroundTruth{
     }
 
     private void setExp(String name) {
-        isExp = !(name.matches("^\\w+$"));
+        boolean flag1  = !(name.matches("^\\w+$")), flag2 = !(name.matches("^[\\w\\.]+$"));
+        isExp = flag1 && flag2;
     }
 
     public String getLocation() {

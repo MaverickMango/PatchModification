@@ -20,7 +20,7 @@ public class GTFilter extends ExpressionFilter {
     public boolean matches(CtElement element) {
         if (element instanceof CtExpression || element instanceof CtVariable) {
             if (element instanceof CtThisAccess || element instanceof CtSuperAccess
-                    || element instanceof CtTypeAccess)
+                    )//|| element instanceof CtTypeAccess
                 return false;
             String str = element.toString();
             return compare(str);
