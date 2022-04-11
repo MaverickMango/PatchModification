@@ -7,6 +7,7 @@ import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtType;
 
 import java.io.File;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -45,11 +46,14 @@ public class GenElements {
         return list;
     }
 
-    public static void setGTElements(String project, int version) throws Exception {
+    public static boolean setGTElements(String project, int version) throws Exception {
         String lowerP = project.toLowerCase();
         String buggyFileDir = GenElements.buggyFileDir + lowerP + "/" + lowerP + "_" + version + "_buggy";
         List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
         List<GroundTruth> gts =  ReadGT.getGTs(gtFileDir + lowerP + ".csv", version);
+        if (gts.size() == 0) {
+            return false;
+        }
         for (String str :buggyFilePath) {
             AstComparator comparator = new AstComparator();
             CtType type = comparator.getCtType(new File(str));
@@ -72,33 +76,65 @@ public class GenElements {
                 StamentFilter stamentFilter = new StamentFilter();
                 stamentFilter.set_positions(poses);
                 List<CtStatement> stmts = type.getElements(stamentFilter);
+                stmts = removeSame(stmts);
                 String name = gt.getName();
                 List<CtElement> nodes = getNodes(stmts, name);
-                if (nodes.size() == 0) {
-                    System.err.println(project + " " + version + " [" + name+ "]");
-                }
-                nodes = removeSame(nodes);
+//                if (nodes.size() == 0) {
+//                nodes = removeSame(nodes);
 //                assert nodes.size() != 0;
+//                    System.err.println(project + " " + version + " [" + name+ "]");
+//                }
                 gt.setNodes(nodes);
             }
         }
+        return true;
     }
 
-    public static List<CtElement> removeSame(List<CtElement> nodes) {
-        List<CtElement> newOne = new ArrayList<>();
-        for (CtElement exp :nodes) {
-            int pos = exp.getPosition().getLine();
-            if (!hasSame(newOne, pos)) {
+//    public static List<CtElement> removeSame(List<CtElement> nodes) {
+//        List<CtElement> newOne = new ArrayList<>();
+//        for (CtElement exp :nodes) {
+//            int pos = exp.getPosition().getLine();
+//            if (!hasSame(newOne, pos)) {
+//                newOne.add(exp);
+//            }
+//        }
+//        return newOne;
+//    }
+
+//    public static boolean hasSame(List<CtElement> list, int line) {
+//        for (CtElement exp :list) {
+//            int pos = exp.getPosition().getLine();
+//            if (pos == line)
+//                return true;
+//        }
+//        return false;
+//    }
+    public static List<CtStatement> removeSame(List<CtStatement> nodes) {
+//        nodes = reverseList(nodes);
+        List<CtStatement> newOne = new ArrayList<>();
+        for (CtStatement exp :nodes) {
+            int start = exp.getPosition().getLine();
+            int end = exp.getPosition().getEndLine();
+            if (!hasSame(newOne, start, end)) {
                 newOne.add(exp);
             }
         }
         return newOne;
     }
 
-    public static boolean hasSame(List<CtElement> list, int line) {
-        for (CtElement exp :list) {
-            int pos = exp.getPosition().getLine();
-            if (pos == line)
+    public static List<CtStatement> reverseList(List<CtStatement> nodes) {
+        List<CtStatement> list = new ArrayList<>();
+        for (int i = nodes.size() - 1; i >= 0; i --) {
+            list.add(nodes.get(i));
+        }
+        return list;
+    }
+
+    public static boolean hasSame(List<CtStatement> list, int start, int end) {
+        for (CtStatement exp :list) {
+            int oldstart = exp.getPosition().getLine();
+            int oldend = exp.getPosition().getEndLine();
+            if ((oldstart <= start && oldend >= end) || (oldstart >= start && oldend <=end))
                 return true;
         }
         return false;

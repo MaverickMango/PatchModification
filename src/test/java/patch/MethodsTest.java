@@ -6,6 +6,7 @@ import org.junit.Test;
 import spoon.reflect.code.*;
 import spoon.reflect.declaration.*;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
@@ -531,30 +532,80 @@ public class MethodsTest {
         String repairBase = "src/test/resources/SimFix/result/patch/";
         List<String> projs = FileTools.getDirNames(repairBase);
         StringBuilder stringBuilder = new StringBuilder("filter:\n");
-        int i = 0, j = 0;
+        HashMap<String, List<String>> filtered = new HashMap<>(), unfiltered = new HashMap<>();
+        int i = 0, j = 0, k = 0;
         for (String proj :projs) {
-            stringBuilder.append(proj).append(":");
+//            stringBuilder.append(proj).append(":");
+            if (!filtered.containsKey(proj)) {
+                filtered.put(proj, new ArrayList<>());
+            }
+            if (!unfiltered.containsKey(proj)) {
+                unfiltered.put(proj, new ArrayList<>());
+            }
             List<String> versions = FileTools.getDirNames(repairBase + proj);
             for (String version :versions) {
                 i ++;
 //                System.out.println(proj + version);
                 String buggyFileDir = buggyBase + proj +
                         "/" + proj + "_" + version + "_buggy";
-                String repair = repairBase + proj + "/" + version;
+                String repairFileDir = repairBase + proj + "/" + version;
                 GenElements.setGTElements(proj, Integer.parseInt(version));
-                FilterWithGT filter = new FilterWithGT();
-                boolean flag = filter.filterWithGT(filter.getActions(buggyFileDir, repair));
-                if (flag) {
-                    stringBuilder.append(" ").append(version);
+                List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
+                List<File> buggyfiles = new ArrayList<>();
+                for (String bu :buggyFilePath) {
+                    buggyfiles.add(new File(bu));
+                }
+                List<String> repairFilePath = FileTools.getFilePaths(repairFileDir, ".java");
+                boolean flag = false;
+                int total = buggyFilePath.size();
+                for (File lf :buggyfiles) {
+                    for (String repair : repairFilePath) {
+//                        File lf = new File(bu);
+                        File rf = new File(repair);
+                        String rfn = rf.getName().split("_").length > 1 ? rf.getName().split("_")[1] : rf.getName();
+                        if (ReadGT.hasExtraRepair(buggyfiles, rfn)) {
+                            flag = true;
+                        }
+                        if (!lf.getName().equals(rfn)) {
+                            continue;
+                        }
+                        total --;
+                        FilterWithGT filter = new FilterWithGT();
+                        flag = flag || filter.filterWithGT(filter.getActionsWithFile(lf, rf));
+                    }
+                }
+                if (flag || total > 0) {
+//                    stringBuilder.append(" ").append(version);
+                    List<String> fd = filtered.get(proj);
+                    fd.add(version);
                     j ++;
+                } else {
+                    List<String> u = unfiltered.get(proj);
+                    u.add(version);
+                    k ++;
                 }
             }
-            stringBuilder.append("\n");
+//            stringBuilder.append("\n");
+        }
+        stringBuilder.append("total bugs number: " + i).append("\n");
+        stringBuilder.append("filter number: " + j).append("\n");
+        for (String key :filtered.keySet()) {
+            List<String> temp =  filtered.get(key);
+            stringBuilder.append(key + ": ");
+            stringBuilder.append(temp).append("\n");
+        }
+        stringBuilder.append("\n").append("unfiltered number: " + k).append("\n");
+        for (String key :unfiltered.keySet()) {
+            List<String> temp =  unfiltered.get(key);
+            stringBuilder.append(key + ": ");
+            stringBuilder.append(temp).append("\n");
         }
         System.out.println(stringBuilder);
-        System.out.println("total bugs number: " + i);
-        System.out.println("filter number: " + j);
+//        System.out.println("total bugs number: " + i);
+//        System.out.println("filter number: " + j);
+//        System.out.println("unfiltered number: " + k);
     }
+
 
     @Test
     public void testpatchfile() throws IOException {
@@ -588,8 +639,9 @@ public class MethodsTest {
         String repairBase = "src/test/resources/TBar/FixedBugs_P/";
         List<String> proj_versions = FileTools.getDirNames(repairBase);
         StringBuilder stringBuilder = new StringBuilder("filter:\n");
-        Map<String, PriorityQueue<String>> filterd = new HashMap<>();
-        int i = 0, j = 0;
+//        Map<String, PriorityQueue<String>> filterd = new HashMap<>();
+        int i = 0, j = 0, k = 0;
+        HashMap<String, List<String>> filtered = new HashMap<>(), unfiltered = new HashMap<>();
         for (String p_v :proj_versions) {
             String[] temp = p_v.split("_");
             assert temp.length >= 2;
@@ -597,39 +649,70 @@ public class MethodsTest {
             String buggyFileDir = buggyBase + proj +
                     "/" + proj + "_" + version + "_buggy";
             String repair = repairBase + p_v + "/";
+            List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
+            int total = buggyFilePath.size();
             List<String> repairFilePath = FileTools.getFilePaths(repair, ".java");
             if (repairFilePath.size() == 0) {
                 System.err.println("no patch at " + proj + version);
                 continue;
             }
-            GenElements.setGTElements(proj, Integer.parseInt(version));
-            boolean res = true;
-            i ++;
-            for (String path :repairFilePath) {
-                FilterWithGT filter = new FilterWithGT();
-                boolean flag = filter.filterWithGT(filter.getActionsWithFile(buggyFileDir, path));
-                res = res && flag;
+            if (!filtered.containsKey(proj)) {
+                filtered.put(proj, new ArrayList<>());
             }
-            if (res) {
-                stringBuilder.append(" ").append(p_v);
+            if (!unfiltered.containsKey(proj)) {
+                unfiltered.put(proj, new ArrayList<>());
+            }
+            GenElements.setGTElements(proj, Integer.parseInt(version));
+            boolean res = false;
+            i ++;
+            for (String bu :buggyFilePath) {
+                for (String path :repairFilePath) {
+                    File lf = new File(bu);
+                    File rf = new File(path);
+                    String rfn = rf.getName();
+                    if (!lf.getName().equals(rfn)) {
+                        continue;
+                    }
+                    total --;
+                    FilterWithGT filter = new FilterWithGT();
+                    boolean flag = filter.filterWithGT(filter.getActionsWithFile(lf, rf));
+                    res = res || flag;
+                }
+            }
+            if (res || total > 0) {
+//                stringBuilder.append(" ").append(p_v);
+                List<String> fd = filtered.get(proj);
+                fd.add(version);
                 j ++;
             } else {
-                if (!filterd.containsKey(proj)) {
-                    filterd.put(proj, new PriorityQueue<>());
-                }
-                PriorityQueue<String> t = filterd.get(proj);
-                t.add(version);
+                List<String> u = unfiltered.get(proj);
+                u.add(version);
+                k ++;
             }
         }
-        System.out.println(stringBuilder);
-        System.out.println("total bugs number: " + i);
-        System.out.println("filter number: " + j + "\n");
-
-        for (String key :filterd.keySet()) {
-            PriorityQueue<String> temp =  filterd.get(key);
-            System.out.println(key + ": ");
-            System.out.println(temp);
+//        System.out.println(stringBuilder);
+//        System.out.println("total bugs number: " + i);
+//        System.out.println("filter number: " + j + "\n");
+//
+//        for (String key :filterd.keySet()) {
+//            PriorityQueue<String> temp =  filterd.get(key);
+//            System.out.println(key + ": ");
+//            System.out.println(temp);
+//        }
+        stringBuilder.append("total bugs number: " + i).append("\n");
+        stringBuilder.append("filter number: " + j).append("\n");
+        for (String key :filtered.keySet()) {
+            List<String> temp =  filtered.get(key);
+            stringBuilder.append(key + ": ");
+            stringBuilder.append(temp).append("\n");
         }
+        stringBuilder.append("\n").append("unfiltered number: " + k).append("\n");
+        for (String key :unfiltered.keySet()) {
+            List<String> temp =  unfiltered.get(key);
+            stringBuilder.append(key + ": ");
+            stringBuilder.append(temp).append("\n");
+        }
+        System.out.println(stringBuilder);
     }
 
     @Test

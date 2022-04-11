@@ -1,37 +1,24 @@
 package gumtree.spoon;
 
-import gumtree.spoon.AstComparator;
 import gumtree.spoon.diff.Diff;
 import gumtree.spoon.diff.operations.DeleteOperation;
 import gumtree.spoon.diff.operations.InsertOperation;
 import gumtree.spoon.diff.operations.Operation;
 import gumtree.spoon.diff.operations.UpdateOperation;
 import patch.*;
-import spoon.Launcher;
-import spoon.reflect.code.CtExpression;
+import spoon.reflect.code.CtAssignment;
+import spoon.reflect.code.CtBlock;
+import spoon.reflect.code.CtLocalVariable;
+import spoon.reflect.code.CtVariableWrite;
 import spoon.reflect.cu.position.NoSourcePosition;
 import spoon.reflect.declaration.CtElement;
-import spoon.reflect.factory.Factory;
+import spoon.reflect.reference.CtVariableReference;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 public class FilterWithGT {
-    public static void main(String[] args) throws Exception {
-        //args-0 buggyBase /args-1 repairBase
-//        String buggyBase = "/home/liu/Desktop/groundtruth/buggyfiles/";
-//        String repairBase = "/home/liu/Desktop/SimFix-master/final/result/patch/";
-        String buggyBase = args[0];
-        String repairBase = args[1];
-        String proj = "chart";
-        int version = 1;
-        String buggyFileDir = buggyBase + proj +
-                "/" + proj + "_" + version + "_buggy";
-        String repair = repairBase + proj + "/" + version;
-    }
-
     public List<Operation> getActions(String buggyFileDir, String repairFileDir) throws Exception {
         List<Operation> actions = new ArrayList<>();
         AstComparator diff = new AstComparator();
@@ -47,33 +34,28 @@ public class FilterWithGT {
         return actions;
     }
 
-    public List<Operation> getActionsWithFile(String buggyFileDir, String repairFilePath) throws Exception {
-        List<Operation> actions = new ArrayList<>();
+    public List<Operation> getActionsWithFile(File buggyFilePath, File repairFilePath) throws Exception {
         AstComparator diff = new AstComparator();
-        List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
-        for (String bu :buggyFilePath) {
-            Diff result = diff.compare(new File(bu),new File(repairFilePath));
-            actions.addAll(result.getRootOperations());
-        }
-        return actions;
+        Diff result = diff.compare(buggyFilePath, repairFilePath);
+        return result.getRootOperations();
     }
 
     public boolean filterWithGT(List<Operation> actions) {
         if (ReadGT.GTs.size() == 0) {
             return false;
         }
-        boolean flag = false;
+        boolean flag = true;
         for (Operation op :actions) {
             if (op instanceof InsertOperation) {
-                flag = insertFilter((InsertOperation) op);
+                flag = flag && insertFilter((InsertOperation) op);
             }
             if (op instanceof UpdateOperation) {
-                flag = updateFilter((UpdateOperation) op);
+                flag = flag && updateFilter((UpdateOperation) op);
             }
             if (op instanceof DeleteOperation) {
-                flag = deleteFilter((DeleteOperation) op);
+                flag = flag && deleteFilter((DeleteOperation) op);
             }
-            if (flag)//todo
+            if (!flag)
                 break;
         }
         return flag;
@@ -84,8 +66,11 @@ public class FilterWithGT {
         List<CtElement> list = new ArrayList<>();
         for (GroundTruth gt : ReadGT.GTs) {
             List<CtElement> nodes = gt.getNodes();
+//            GTFilter filter = new GTFilter(newNode);
+//            filter.set_name(nodes);
+//            list.addAll(newNode.getElements(filter));
             for (CtElement exp :nodes) {
-                GTFilter filter = new GTFilter();
+                GTFilter filter = new GTFilter(newNode);
                 filter.set_name(exp.toString());
                 list.addAll(newNode.getElements(filter));
             }
@@ -108,17 +93,15 @@ public class FilterWithGT {
             List<CtElement> nodes = gt.getNodes();
             if (!gt.isExp()) {
                 for (CtElement exp : nodes) {
-                    GTFilter filter = new GTFilter();
+                    GTFilter filter = new GTFilter(srcode);
+                    GTFilter filter2 = new GTFilter(newNode);
                     filter.set_name(exp.toString());
-                    flag = isVarUpdateWithGT(srcode.getElements(filter), newNode.getElements(filter));
-                    if (flag)
-                        break;
+                    filter2.set_name(exp.toString());
+                    flag = flag || isVarUpdateWithGT(srcode.getElements(filter), newNode.getElements(filter2), exp);
                 }
             } else {
                 for (CtElement exp : nodes) {
-                    flag = isExpChanged(srcode, newNode, exp.toString());
-                    if (flag)
-                        break;
+                    flag = flag || isExpChanged(srcode, newNode, exp.toString());
                 }
             }
             if (flag)
@@ -137,43 +120,81 @@ public class FilterWithGT {
             return true;
         }
         List<CtElement> list = new ArrayList<>();
+        boolean flag = false;
         for (GroundTruth gt : ReadGT.GTs) {
-            if (gt.isExp())
-                continue;
             List<CtElement> nodes = gt.getNodes();
+            if (gt.isExp()) {
+                for (CtElement exp : nodes) {
+                    flag = flag || isExpChanged(srcode, exp.toString());
+                }
+//                continue;
+            }
             for (CtElement exp :nodes) {
-                GTFilter filter = new GTFilter();
+                GTFilter filter = new GTFilter(srcode);
                 filter.set_name(exp.toString());
                 list.addAll(srcode.getElements(filter));
             }
         }
-        return list.size() == 0;
+        if (flag)
+            return false;
+        else return list.size() == 0;
     }
 
-    public boolean isVarUpdateWithGT(List<CtElement> oldNodes, List<CtElement> newNodes) {
-        if ((!newNodes.isEmpty()) && oldNodes.containsAll(newNodes))
-            return false;
+    public boolean isVarUpdateWithGT(List<CtElement> oldNodes, List<CtElement> newNodes, CtElement gtElement) {
         if (oldNodes.isEmpty() && newNodes.isEmpty())
             return false;
-        return true;
+        if (newNodes.size() != oldNodes.size())
+            return true;
+        else {
+            if (gtElement instanceof CtVariableReference) {
+                boolean b = isTypeChanged(((CtVariableReference<?>) gtElement).getType().toString(),
+                        (newNodes.get(0)).toString());// type change
+                return b;
+            }
+            if (gtElement instanceof CtVariableWrite) {
+                boolean c = isAsgChanged(gtElement.toString(), newNodes.get(0));
+                return c;
+            }
+        }
+        return false;
+    }
+
+    private boolean isAsgChanged(String gt, CtElement e) {
+        while (e != null && !(e instanceof CtBlock)) {
+            if (e instanceof CtAssignment) {
+                CtAssignment asg = (CtAssignment) e;
+                return asg.getAssigned().toString().equals(gt);
+            }
+            e = e.getParent();
+        }
+        return false;
+    }
+
+    boolean isTypeChanged(String ori, String modi) {
+        return !ori.equals(modi);
     }
 
     public boolean isExpChanged(CtElement oldNode, CtElement newNode, String gt) {
         return oldNode.toString().equals(gt) && !oldNode.toString().equals(newNode.toString());
     }
 
+    public boolean isExpChanged(CtElement oldNode, String gt) {
+        return oldNode.toString().equals(gt);
+    }
+
     public boolean fitLineScope(int line) {
+        boolean flag = false;
         for (GroundTruth gt :ReadGT.GTs) {
             if (gt.isOnlyOneLine()) {
                 int one = gt.getLinenumber();
-                return one == line;
+                flag = flag || one == line;
             } else {
                 int start = gt.getStartLineNumber();
                 int end = gt.getEndLineNumber();
-                return start <= line && end >= line;
+                flag = flag || (start <= line && end >= line);
             }
         }
-        return true;
+        return flag;
     }
 
 }

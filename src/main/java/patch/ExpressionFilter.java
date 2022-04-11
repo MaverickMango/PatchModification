@@ -3,6 +3,9 @@ package patch;
 import spoon.reflect.code.*;
 import spoon.reflect.declaration.CtElement;
 import spoon.reflect.declaration.CtVariable;
+import spoon.reflect.reference.CtLocalVariableReference;
+import spoon.reflect.reference.CtParameterReference;
+import spoon.reflect.reference.CtVariableReference;
 import spoon.reflect.visitor.filter.AbstractFilter;
 
 public class ExpressionFilter extends AbstractFilter<CtElement> {
@@ -12,14 +15,22 @@ public class ExpressionFilter extends AbstractFilter<CtElement> {
         this._name = compactStr(name);
     }
 
+    public String get_name() {
+        return _name;
+    }
+
     boolean compare(String str) {
         String name = _name;
         if (name.startsWith("(") && name.endsWith(")"))
             name = name.substring(1, name.length() - 1);
-        if (name.equals(compactStr(str))){
-            return true;
-        }
-        return _name.equals(compactStr(str));
+        String comp = compactStr(str);
+        if (comp.startsWith("(") && comp.endsWith(")"))
+            comp = comp.substring(1, comp.length() - 1);
+//        if (name.equals(comp)){
+//            return true;
+//        }
+//        return _name.equals(compactStr(str));
+        return name.equals(comp);
     }
 
     String compactStr(String str) {
@@ -30,12 +41,10 @@ public class ExpressionFilter extends AbstractFilter<CtElement> {
 
     @Override
     public boolean matches(CtElement element) {
-        if (element instanceof CtExpression || element instanceof CtLocalVariable) {
+        if (element instanceof CtExpression || element instanceof CtVariableReference) {
             if (element instanceof CtThisAccess || element instanceof CtSuperAccess
                     )//|| element instanceof CtTypeAccess
                 return false;
-            if (element instanceof CtLocalVariable)
-                element = ((CtLocalVariable) element).getReference();
             String str = "";
             try {
                 str = element.getOriginalSourceFragment().getSourceCode();

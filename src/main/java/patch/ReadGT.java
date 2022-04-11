@@ -375,4 +375,12 @@ public class ReadGT {
             e.printStackTrace();
         }
     }
+
+    public static boolean hasExtraRepair(List<File> buggyfiles, String repairFileName) {
+        List<String> filenames = new ArrayList<>();
+        for (File file :buggyfiles) {
+            filenames.add(file.getName());
+        }
+        return !filenames.contains(repairFileName);
+    }
 }
