@@ -98,12 +98,7 @@ public class FileTools {
         return sb.toString();
     }
 
-    /**
-     * 存储补丁中包含的buggy文件路径信息,补丁修改位置行号(起始行号,偏移量,..)
-     * @param fileName
-     * @return list-{filepath, change start line, offset, offset,..}
-     */
-    public static List<String> readPatchInfo(String fileName) {
+    public static List<String> readEachLine(String fileName) {
         File file = new File(fileName);
         BufferedReader reader = null;
 
@@ -111,26 +106,8 @@ public class FileTools {
         try {
             reader = new BufferedReader(new FileReader(file));
             String tempString = null;
-            int i = 0;
-            // 一次读入一行，直到读入null为文件结束
             while ((tempString = reader.readLine()) != null) {
-                i++;
-                if (tempString.startsWith("---")) {
-                    String[] temp = tempString.replace("\t", " ").split(" ");
-                    list.add(temp[1]);
-                }
-                if (tempString.startsWith("@@")) {
-                    String[] temp = tempString.replace(" ", "").replaceAll("[,+-]", " ").split(" ");
-                    list.add(temp[1]);
-                }
-                if (tempString.startsWith("+ ")) {
-                    String temp = String.valueOf(i - 5);
-                    list.add(temp);
-                }
-                if (tempString.startsWith("+ ")) {
-                    String temp = String.valueOf(i - 5);
-                    list.add(temp);
-                }
+                list.add(tempString);
             }
         } catch (IOException e) {
             e.printStackTrace();

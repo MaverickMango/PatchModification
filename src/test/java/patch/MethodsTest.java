@@ -601,9 +601,6 @@ public class MethodsTest {
             stringBuilder.append(temp).append("\n");
         }
         System.out.println(stringBuilder);
-//        System.out.println("total bugs number: " + i);
-//        System.out.println("filter number: " + j);
-//        System.out.println("unfiltered number: " + k);
     }
 
 
@@ -625,12 +622,6 @@ public class MethodsTest {
             stringBuilder.append(" ").append(repairDir);
         }
         FileTools.writeToFile(stringBuilder.toString(), "patchDirs_P");
-    }
-
-    @Test
-    public void testCommand() throws IOException {
-        String res = CommandUtil.run("ls /home/liu/IdeaProjects/gumtree-spoon-ast-diff/gumtree-spoon-ast-diff/src/test/resources/TBar/FixedBugs/Chart_14/*.txt");
-        System.out.println(res);//no result
     }
 
     @Test
@@ -716,33 +707,85 @@ public class MethodsTest {
     }
 
     @Test
-    public void testmatches() {
-        String n = "a.b";
-        String n2 = "this(a.b)";
-        System.out.println(n.matches("^[\\w\\.]+$"));
-        System.out.println(n2.matches("^[\\w\\.]+$"));
+    public void testFilterWithLine() throws Exception {
+        ReadGT.getBugLines("src/test/resources/BugPositions.txt");
+        String buggyBase = "/home/liu/Desktop/groundtruth/buggyfiles/";
+        String repairBase = "src/test/resources/SimFix/result/patch/";
+        List<String> projs = FileTools.getDirNames(repairBase);
+        StringBuilder stringBuilder = new StringBuilder("filter:\n");
+        HashMap<String, List<String>> filtered = new HashMap<>(), unfiltered = new HashMap<>();
+        int i = 0, j = 0, k = 0;
+        for (String proj :projs) {
+            if (!filtered.containsKey(proj)) {
+                filtered.put(proj, new ArrayList<>());
+            }
+            if (!unfiltered.containsKey(proj)) {
+                unfiltered.put(proj, new ArrayList<>());
+            }
+            List<String> versions = FileTools.getDirNames(repairBase + proj);
+            for (String version :versions) {
+                i ++;
+                String buggyFileDir = buggyBase + proj +
+                        "/" + proj + "_" + version + "_buggy";
+                String repairFileDir = repairBase + proj + "/" + version;
+                //
+                List<String> buggyFilePath = FileTools.getFilePaths(buggyFileDir, ".java");
+                List<File> buggyfiles = new ArrayList<>();
+                for (String bu :buggyFilePath) {
+                    buggyfiles.add(new File(bu));
+                }
+                List<String> repairFilePath = FileTools.getFilePaths(repairFileDir, ".java");
+                boolean flag = false;
+                int total = buggyFilePath.size();
+                for (File lf :buggyfiles) {
+                    for (String repair : repairFilePath) {
+                        File rf = new File(repair);
+                        String rfn = rf.getName().split("_").length > 1 ? rf.getName().split("_")[1] : rf.getName();
+                        if (ReadGT.hasExtraRepair(buggyfiles, rfn)) {
+                            flag = true;
+                        }
+                        if (!lf.getName().equals(rfn)) {
+                            continue;
+                        }
+                        total --;
+                        FilterWithGT filter = new FilterWithGT();
+                        flag = flag || filter.filterWithLine(filter.getActionsWithFile(lf, rf)
+                                , proj + "_" + version, rfn);
+                    }
+                }
+                if (flag || total > 0) {
+//                    stringBuilder.append(" ").append(version);
+                    List<String> fd = filtered.get(proj);
+                    fd.add(version);
+                    j ++;
+                } else {
+                    List<String> u = unfiltered.get(proj);
+                    u.add(version);
+                    k ++;
+                }
+            }
+//            stringBuilder.append("\n");
+        }
+        stringBuilder.append("total bugs number: " + i).append("\n");
+        stringBuilder.append("filter number: " + j).append("\n");
+        for (String key :filtered.keySet()) {
+            List<String> temp =  filtered.get(key);
+            stringBuilder.append(key + ": ");
+            stringBuilder.append(temp).append("\n");
+        }
+        stringBuilder.append("\n").append("unfiltered number: " + k).append("\n");
+        for (String key :unfiltered.keySet()) {
+            List<String> temp =  unfiltered.get(key);
+            stringBuilder.append(key + ": ");
+            stringBuilder.append(temp).append("\n");
+        }
+        System.out.println(stringBuilder);
     }
 
     @Test
-    public void testResult() {
-//        String res = "Math_96_P Chart_25_P Math_3_P Chart_20 Lang_51_P Math_65 Math_32_P Closure_22_P Lang_57 Chart_7_P Math_11 Math_58 Math_34 Lang_63_P Math_5 Chart_8 Math_30 Chart_11 Math_89 Math_28_P Chart_13_P Math_80 Math_85_P Math_95_P Math_62_P Math_35 Time_11_P Closure_21 Math_82_P Math_57 Closure_126_P Math_2_P Math_79 Lang_39_P Math_63_P Closure_46 Lang_44_P";
-        String res = "Math_96_P Closure_22_P---- Lang_63 Math_88_P Math_3_P Chart_20 Closure_92_P Math_65 Lang_21_P Math_32_P Time_18_P Chart_7_P Math_11 Math_58 Time_26 Math_34 Closure_40 Math_5 Math_8_P Chart_8 Closure_70 Math_30 Math_89 Math_28_P Math_80 Math_62_P Lang_51 Math_56_P Closure_21_P--- Math_35 Math_57 Lang_13_P Lang_27_P Lang_26 Math_79 Mockito_26 Math_63_P Closure_46";
-        String[] list = res.split(" ");
-        Map<String, PriorityQueue<String>> filterd = new HashMap<>();
-        for (String pv :list) {
-            String proj = pv.split("_")[0];
-            String version = pv.split("_")[1];
-            if (!filterd.containsKey(proj)) {
-                filterd.put(proj, new PriorityQueue<>());
-            }
-            PriorityQueue<String> temp = filterd.get(proj);
-            temp.add(version);
-        }
-        for (String key :filterd.keySet()) {
-            PriorityQueue<String> temp =  filterd.get(key);
-            System.out.println(key + ": ");
-            System.out.println(temp);
-        }
+    public void testgetLineInfos() {
+        Map<String, List<LineGroundTruth>> map = ReadGT.getBugLines("src/test/resources/BugPositions.txt");
+        System.out.println(map.get("Chart_21").get(0));
     }
 
 }

@@ -8,7 +8,6 @@ import gumtree.spoon.diff.operations.UpdateOperation;
 import patch.*;
 import spoon.reflect.code.CtAssignment;
 import spoon.reflect.code.CtBlock;
-import spoon.reflect.code.CtLocalVariable;
 import spoon.reflect.code.CtVariableWrite;
 import spoon.reflect.cu.position.NoSourcePosition;
 import spoon.reflect.declaration.CtElement;
@@ -16,7 +15,9 @@ import spoon.reflect.reference.CtVariableReference;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class FilterWithGT {
     public List<Operation> getActions(String buggyFileDir, String repairFileDir) throws Exception {
@@ -195,6 +196,45 @@ public class FilterWithGT {
             }
         }
         return flag;
+    }
+
+    public boolean filterWithLine(List<Operation> actions, String proj_version, String location) {
+        List<LineGroundTruth> lgts = ReadGT.LGTMap.get(proj_version);
+        boolean flag = false;
+        for (LineGroundTruth lgt :lgts) {
+            if (!lgt.getLocation().equals(location))
+                continue;
+            for (Operation op :actions) {
+                if (op instanceof UpdateOperation || op instanceof DeleteOperation) {
+                    flag = flag || isChangeContainPos(op.getSrcNode(), lgt);
+                }
+                if (op instanceof InsertOperation) {
+                    flag = true;
+                }
+                if (!flag)
+                    break;
+            }
+        }
+        return !flag;
+    }
+
+    boolean isChangeContainPos(CtElement srcode, LineGroundTruth lgt) {
+        int start = 0, end = 0;
+        if (srcode.getPosition() != null && !(srcode.getPosition() instanceof NoSourcePosition)) {
+            start = srcode.getPosition().getLine();
+            end = srcode.getPosition().getEndLine();
+        }
+        List<String> poses = new ArrayList<>();
+        while (start <= end) {
+            poses.add(String.valueOf(start));
+            start ++;
+        }
+        List<String> lines = lgt.getLinenumbers();
+        for (String pos :poses) {
+            if (lines.contains(pos))
+                return true;
+        }
+        return false;
     }
 
 }

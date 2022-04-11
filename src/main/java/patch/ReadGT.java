@@ -14,68 +14,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ReadGT {
-    public static String outputSrc = "/home/liu/Desktop/FilterResult/filtered";
     public static List<GroundTruth> GTs = null;
-    static String fileBase = "/home/liu/Desktop/groundtruth/";
-
-    public static boolean hasThisVar(String name) {
-        for (GroundTruth gt :GTs) {
-            if (!gt.isExp() && gt.getName().equals(name)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public static boolean hasThisExp(String exp) {
-        for (GroundTruth gt :GTs) {
-            if (gt.isExp() && gt.getName().startsWith("(") && gt.getName().endsWith(")")) {
-                String temp = gt.getName().replace(" ", "")
-                        .substring(1, gt.getName().length() - 1);
-                if (temp.equals(exp)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    public static boolean hasExp() {
-        for (GroundTruth gt :GTs) {
-            if (gt.isExp())
-                return true;
-        }
-        return false;
-    }
-
-
-    public static boolean filtered(Set<String> A, Set<String> B) {
-        boolean allAInB = true;
-        for (String var : A) {
-            if (!B.contains(var)) {
-                allAInB = false;
-                break;
-            }
-        }
-        if (!allAInB) {
-            return false;
-        } else {
-            return B.size() <= A.size();
-        }
-    }
-
-    public static void getGTs(String[] info) {
-        GTs = getGTs(fileBase + info[0] +".csv", Integer.parseInt(info[1]));
-    }
-
-    public static String[] getInfos(String location) {
-//        ConfigurationProperties.setProperty("location", "/home/liu/Desktop/astor/examples/chart_3/");
-        String temp = location.substring(0, location.length()-1);
-        String[] info = temp.substring(temp.lastIndexOf("/") + 1).split("_");
-        assert info.length == 2;
-//        info[0] = fileBase + info[0] +".csv";
-        return info;
-    }
+    public static Map<String, List<LineGroundTruth>> LGTMap = null;
 
     public static List<GroundTruth> getGTs(String filePath, int version) {
         String line = getLine(filePath, version);
@@ -151,236 +91,47 @@ public class ReadGT {
         return exps;
     }
 
-    public static void outputFiltered(String appendStr, String outputSrc) throws IOException {
-        File file = new File(outputSrc);
-        if (!file.exists()) {
-            file.createNewFile();
-        }
-        try (FileOutputStream fos = new FileOutputStream(file,true);
-             OutputStreamWriter writer = new OutputStreamWriter(fos)) {
-            writer.write(appendStr);
-            writer.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void outputFiltered(String appendStr) throws IOException {
-        File file = new File(outputSrc);
-        if (!file.exists()) {
-            file.createNewFile();
-        }
-        try (FileOutputStream fos = new FileOutputStream(file,true);
-             OutputStreamWriter writer = new OutputStreamWriter(fos)) {
-            writer.write(appendStr);
-            writer.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static List<String[]> getFiltered(String resultFile) {
-        if (resultFile == null || resultFile.equals("")) {
-            return null;
-        }
-        File file = new File(resultFile);
-        BufferedReader reader = null;
-        String tempString = null;
-        List<String[]> sum = new ArrayList<>();
-        try {
-            reader = new BufferedReader(new FileReader(file));
-            String[] one = new String[3];
-            while ((tempString = reader.readLine()) != null) {
-                tempString.replace('\r', ' ');
-                if (tempString.startsWith("bug:")) {
-                    one[0] = tempString.split(":")[1];
-                }
-                if (tempString.startsWith("filtered numbers:")) {
-                    one[1] = tempString.split(":")[1];
-                }
-                if (tempString.startsWith("filtered:")) {
-                    one[2] = tempString.split(":").length > 1 ? tempString.split(":")[1] : "";
-                }
-                if (one[0] != null && one[1] != null && one[2] != null) {
-                    sum.add(one);
-                    one = new String[3];
-                }
-            }
-            reader.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return sum;
-    }
-
-    public static List<String> readIDs(String fileName) {
-        List<String> ids = new ArrayList<>();
-        File file = new File(fileName);
-        BufferedReader reader = null;
-        String tempString = null;
-        try {
-            reader = new BufferedReader(new FileReader(file));
-            while ((tempString = reader.readLine()) != null) {
-                tempString.replace('\r', ' ');
-                String proj = tempString.split(":")[0];
-                String[] versions = tempString.split(":")[1].split(",");
-                for (String version :versions) {
-                    ids.add(proj + "-" + version);
-                }
-            }
-            reader.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return ids;
-    }
-
-    public static Map<String, List<String>> removeRepetition(String projIDs, String result) throws IOException {
-        String base = "/home/liu/Desktop/FilterResult/";
-        List<String> ids = readIDs(projIDs);
-        Map<String, List<String>> map = new HashMap<>();
-        String proj, version, dirPath;
-        File file;
-        for (String id :ids) {
-            List<String> variantDir = new ArrayList<>();
-            proj = id.split("-")[0];
-            version = id.split("-")[1];
-            dirPath = base + proj + "/" + proj + "_" + version + "/src/";
-            file = new File(dirPath);
-            File[] list = file.listFiles();
-            for (File dir :list) {
-                if (dir.isDirectory() && dir.getName().startsWith("variant") && !dir.getName().endsWith("_f")) {
-                    variantDir.add(dir.getName());
-                }
-            }
-            if (variantDir.size() == 0) {
-                continue;
-            }
-            int diffFile = variantDir.size();
-            List<Integer> iterator = new ArrayList<>();
-            for (int i = 0; i < variantDir.size(); i++) {
-                iterator.add(i);
-            }
-            List<Integer> diffVars = new ArrayList<>();
-            different(variantDir, dirPath, diffFile, iterator, diffVars);
-            List<String> variants = new ArrayList<>();
-            for (Integer i :diffVars) {
-                String s = variantDir.get(i).split("-")[1].split("_")[0];
-                variants.add(s);
-            }
-            map.put(id, variants);
-        }
-        return map;
-    }
-
-    public static int different(List<String> variantDir, String dirPath, int diffFileNums, List<Integer> iterator, List<Integer> diffVars) throws IOException {
-        if (iterator.size() != 0) {
-            diffVars.add(iterator.get(0));
-        }
-        if (iterator.size() < 2) {
-            return diffFileNums;
-        }
-        List<Integer> nextDiff = new ArrayList<>();
-        String patch = "/patch.diff";
-        boolean isSame = false;
-        int i = iterator.get(0);
-        String variant1 = dirPath + variantDir.get(i) + patch;
-        for (int j = iterator.get(iterator.indexOf(i)+1); ; j = iterator.get(iterator.indexOf(j)+1)) {
-            String compare = dirPath + variantDir.get(j) + patch;
-            isSame = compareTwo(variant1, compare);
-            if (isSame) {
-                diffFileNums --;
-            } else {
-                nextDiff.add(j);
-            }
-            if (iterator.indexOf(j) >= iterator.size() - 1)
-                break;
-        }
-        return different(variantDir, dirPath, diffFileNums, nextDiff, diffVars);
-    }
-
-    public static boolean compareTwo(String one, String another) throws IOException {
-        List<String> list1 =  Files.readAllLines(Paths.get(one));
-        List<String> list2 =  Files.readAllLines(Paths.get(another));
-
-        List<String> finalList = list2.stream().filter(line ->
-                list1.stream().filter(line2 -> line2.equals(line)).count() == 0
-        ).collect(Collectors.toList());
-        if (finalList.size() == 0) {
-            return true;
-        }else{
-            return false;
-        }
-    }
-
-    public static void sumResult(String projIDs, String result, String output) throws IOException {
-        List<String[]> filtered = getFiltered(result);
-        Map<String, List<String>> map = removeRepetition(projIDs, result);
-        StringBuilder stringBuilder = new StringBuilder();
-        for (String[] infos: filtered) {
-            if (map.containsKey(infos[0])) {
-                stringBuilder.append("\n");
-                List<String> solutions = map.get(infos[0]);
-                stringBuilder.append("bug: ").append(infos[0]).append("\n")
-                        .append("orginal solutions: ").append(solutions.size()).append("\n")
-                        .append("solutions:");
-                for (String solution :solutions) {
-                    stringBuilder.append(" ").append(solution);
-                }
-                String[] filteredVs = infos[2].split(" ");
-                infos[2] = "";
-                int nums = 0;
-                for (String v :filteredVs) {
-                    if (solutions.contains(v)) {
-                        infos[2] += " " + v;
-                        nums ++;
-                    }
-                }
-                stringBuilder.append("\n")
-                        .append("filtered numbers: ").append(nums).append("\n")
-                        .append("filtered:").append(infos[2]).append("\n");
-            }
-        }
-        outputFiltered(stringBuilder.toString(), output);
-    }
-
-    public static void sumResult(String resultFile) {
-        File file = new File(resultFile);
-        BufferedReader reader = null;
-        String tempString = null;
-        String bug = "";
-        int total = 0;
-        int filtered = 0;
-        String fl = "";
-        try {
-            reader = new BufferedReader(new FileReader(file));
-            while ((tempString = reader.readLine()) != null) {
-                tempString.replace('\r', ' ');
-//                if (tempString.startsWith("bug:")) {
-//                    bug = tempString.split(":")[1];
-//                }
-                if (tempString.startsWith("orginal solutions:")) {
-                    total += Integer.parseInt(tempString.split(":")[1].trim());
-                }
-                if (tempString.startsWith("filtered numbers:")) {
-                    filtered += Integer.parseInt(tempString.split(":")[1].trim());
-                }
-//                if (tempString.startsWith("filtered:")) {
-//                    fl = tempString;
-//                }
-            }
-            System.out.println("filtered/total: " + filtered + "/" + total);
-            reader.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     public static boolean hasExtraRepair(List<File> buggyfiles, String repairFileName) {
         List<String> filenames = new ArrayList<>();
         for (File file :buggyfiles) {
             filenames.add(file.getName());
         }
         return !filenames.contains(repairFileName);
+    }
+
+    public static Map<String, List<LineGroundTruth>> getBugLines(String bugpositions) {
+        List<String> list = FileTools.readEachLine(bugpositions);
+        Map<String, List<LineGroundTruth>> map = new HashMap<>();
+        for (String line :list) {
+            String[] temp = line.split("@");
+            assert temp.length == 3;
+            String p_v = temp[0];
+            String location = temp[1];
+            if (!map.containsKey(p_v)) {
+                map.put(p_v.toLowerCase(), new ArrayList<>());
+            }
+            LineGroundTruth lgt = new LineGroundTruth();
+            lgt.setProj(p_v.split("_")[0].toLowerCase());
+            lgt.setVersion(p_v.split("_")[1]);
+            lgt.setLocation(location.substring(location.lastIndexOf("/") + 1));
+            List<String> lines = new ArrayList<>();
+            String[] ls = temp[2].split(",");
+            for (String l :ls) {
+                if (!l.contains("-")) {
+                    lines.add(l);
+                    continue;
+                }
+                String[] start2End = l.split("-");
+                assert start2End.length == 2;
+                for (int i = Integer.parseInt(start2End[0]); i <= Integer.parseInt(start2End[1]); i++) {
+                    lines.add(String.valueOf(i));
+                }
+            }
+            lgt.setLinenumbers(lines);
+            List<LineGroundTruth> lgts = map.get(p_v.toLowerCase());
+            lgts.add(lgt);
+        }
+        LGTMap = map;
+        return map;
     }
 }
