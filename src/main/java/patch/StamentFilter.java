@@ -21,7 +21,10 @@ public class StamentFilter extends AbstractFilter<CtStatement> {
 
     public boolean compare(int startLine, int endLine) {
         for (int position : _positions) {
-            if (startLine <= position && endLine >= position) {
+            if (startLine == position && endLine >= position) {
+                return true;
+            }
+            if (startLine <= position && endLine == position) {
                 return true;
             }
         }

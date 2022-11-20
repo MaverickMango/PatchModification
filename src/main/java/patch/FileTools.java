@@ -177,6 +177,23 @@ public class FileTools {
         }
         return paths;
     }
+    public static List<String> getFilePath(String fileDir, String postfix) {
+        List<String> paths = new ArrayList<>();
+        //读取输入路径的文件
+        File[] list = new File(fileDir).listFiles();
+        for(File file : list)
+        {
+            if(file.isFile())
+            {
+                if (file.getName().endsWith(postfix)) {
+                    // 就输出该文件的绝对路径
+                    paths.add(file.getAbsolutePath());
+                }
+
+            }
+        }
+        return paths;
+    }
 
     public static List<String> getDirNames(String fileDir) {
         List<String> paths = new ArrayList<>();

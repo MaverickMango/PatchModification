@@ -528,7 +528,6 @@ public class MethodsTest {
     @Test
     public void testSimFix() throws Exception {
         String buggyBase = "/home/liu/Desktop/groundtruth/buggyfiles/";
-//        String repairBase = "/home/liu/Desktop/SimFix-master/final/result/patch/";
         String repairBase = "src/test/resources/SimFix/result/patch/";
         List<String> projs = FileTools.getDirNames(repairBase);
         StringBuilder stringBuilder = new StringBuilder("filter:\n");
@@ -631,8 +630,9 @@ public class MethodsTest {
         List<String> proj_versions = FileTools.getDirNames(repairBase);
         StringBuilder stringBuilder = new StringBuilder("filter:\n");
 //        Map<String, PriorityQueue<String>> filterd = new HashMap<>();
-        int i = 0, j = 0, k = 0;
+        int i = 0, j = 0, k = 0, c = 0;
         HashMap<String, List<String>> filtered = new HashMap<>(), unfiltered = new HashMap<>();
+        HashMap<String, List<String>> cr = new HashMap<>(), icr = new HashMap<>();
         for (String p_v :proj_versions) {
             String[] temp = p_v.split("_");
             assert temp.length >= 2;
@@ -652,6 +652,18 @@ public class MethodsTest {
             }
             if (!unfiltered.containsKey(proj)) {
                 unfiltered.put(proj, new ArrayList<>());
+            }
+            if (!cr.containsKey(proj)) {
+                cr.put(proj, new ArrayList<>());
+            }
+            if (!icr.containsKey(proj)) {
+                icr.put(proj, new ArrayList<>());
+            }
+            if (temp.length == 2) {
+                c ++;
+                cr.get(proj).add(version);
+            } else if (temp.length == 3) {
+                icr.get(proj).add(version);
             }
             GenElements.setGTElements(proj, Integer.parseInt(version));
             boolean res = false;
@@ -691,16 +703,29 @@ public class MethodsTest {
 //            System.out.println(temp);
 //        }
         stringBuilder.append("total bugs number: " + i).append("\n");
+        stringBuilder.append("total correct number: " + c).append("\n");
         stringBuilder.append("filter number: " + j).append("\n");
         for (String key :filtered.keySet()) {
             List<String> temp =  filtered.get(key);
-            stringBuilder.append(key + ": ");
+            stringBuilder.append(key + "(" + temp.size() + "): ");
             stringBuilder.append(temp).append("\n");
         }
         stringBuilder.append("\n").append("unfiltered number: " + k).append("\n");
         for (String key :unfiltered.keySet()) {
             List<String> temp =  unfiltered.get(key);
-            stringBuilder.append(key + ": ");
+            stringBuilder.append(key + "(" + temp.size() + "): ");
+            stringBuilder.append(temp).append("\n");
+        }
+        stringBuilder.append("\n").append("cr number: " + k).append("\n");
+        for (String key :cr.keySet()) {
+            List<String> temp =  cr.get(key);
+            stringBuilder.append(key + "(" + temp.size() + "): ");
+            stringBuilder.append(temp).append("\n");
+        }
+        stringBuilder.append("\n").append("icr number: " + k).append("\n");
+        for (String key :icr.keySet()) {
+            List<String> temp =  icr.get(key);
+            stringBuilder.append(key + "(" + temp.size() + "): ");
             stringBuilder.append(temp).append("\n");
         }
         System.out.println(stringBuilder);
@@ -787,5 +812,100 @@ public class MethodsTest {
         Map<String, List<LineGroundTruth>> map = ReadGT.getBugLines("src/test/resources/BugPositions.txt");
         System.out.println(map.get("Chart_21").get(0));
     }
-
+    public List<String[]> readinfos(String filepath){
+        List<String> lines = FileTools.readEachLine(filepath);
+        List<String[]> list = new ArrayList<>();
+        for (String line :lines) {
+            String[] temp = line.split(",");
+            assert temp.length == 3;
+            String[] infos = new String[5];
+            String[] p_v = temp[2].split("_");
+            infos[0] = p_v[0] + p_v[1] + "b_" + temp[0];//dirname
+            infos[1] = p_v[0];infos[2] = p_v[1];//proj;version
+            infos[3] = temp[1];//correctness
+            infos[4] = temp[0];//patch id
+            list.add(infos);
+        }
+        return list;
+    }
+    @Test
+    public void testPatchsim() throws Exception {
+        String buggyBase = "/home/liu/Desktop/patchsim/";
+        String repairBase = buggyBase;
+        String baseDir = "/home/liu/Desktop/groundtruth/";
+        List<String[]> infos = readinfos(repairBase + "PatchCorrectness.csv");
+        String ps = "1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 37, 38, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 58, 59, 62, 63, 64, 65, 66, 67, 68, 69, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 88, 89, 90, 91, 92, 93, 150, 151, 152, 153, 154, 155, 157, 158, 159, 160, 161, 162, 163, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 191, 192, 193, 194, 195, 196, 197, 198, 199, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, HDRepair1, HDRepair3, HDRepair4, HDRepair5, HDRepair6, HDRepair7, HDRepair8, HDRepair9, HDRepair10";
+        List<String> patchids = Arrays.asList(ps.replace(" ", "").split(","));
+        StringBuilder stringBuilder = new StringBuilder("filter:\n");
+        int i = 0, j = 0, k = 0, c = 0;
+        HashMap<String, List<String>> filtered = new HashMap<>(), unfiltered = new HashMap<>();
+        for (String[] info :infos) {
+            String proj = info[1].toLowerCase(Locale.ROOT), version = info[2];
+            if (!patchids.contains(info[4].replace("Patch", "")))
+                continue;
+//            if (proj.equals("closure"))
+//                continue;
+            String buggyFileDir = buggyBase + info[0] + "/ori";
+            String repair = repairBase + info[0] + "/";
+            List<String> buggyFilePath = FileTools.getFilePath(buggyFileDir, ".java");
+            int total = buggyFilePath.size();
+            List<String> repairFilePath = FileTools.getFilePath(repair, ".java");
+            if (!filtered.containsKey(proj)) {
+                filtered.put(proj, new ArrayList<>());
+            }
+            if (!unfiltered.containsKey(proj)) {
+                unfiltered.put(proj, new ArrayList<>());
+            }
+            if (info[3].equals("Correct")) {
+                info[4] = info[4] + "*";
+                c ++;
+            }
+            boolean succ = GenElements.setGTElements(proj, Integer.parseInt(version));
+            if (!succ) {
+                System.err.println("no gt: " + info[4]);
+                continue;
+            }
+            i ++;
+            boolean res = false;
+            for (String bu :buggyFilePath) {
+                for (String path :repairFilePath) {
+                    File lf = new File(bu);
+                    File rf = new File(path);
+                    String rfn = rf.getName();
+                    if (!lf.getName().equals(rfn)) {
+                        continue;
+                    }
+                    total --;
+                    FilterWithGT filter = new FilterWithGT();
+                    boolean flag = filter.filterWithGT(filter.getActionsWithFile(lf, rf));
+                    res = res || flag;
+                }
+            }
+            if (res || total > 0) {
+//                stringBuilder.append(" ").append(p_v);
+                List<String> fd = filtered.get(proj);
+                fd.add(info[4]);
+                j ++;
+            } else {
+                List<String> u = unfiltered.get(proj);
+                u.add(info[4]);
+                k ++;
+            }
+        }
+        stringBuilder.append("total bugs number: " + i).append("\n");
+        stringBuilder.append("total correct number: " + c).append("\n");
+        stringBuilder.append("filter number: " + j).append("\n");
+        for (String key :filtered.keySet()) {
+            List<String> temp =  filtered.get(key);
+            stringBuilder.append(key + "(" + temp.size() + "): ");
+            stringBuilder.append(temp).append("\n");
+        }
+        stringBuilder.append("\n").append("unfiltered number: " + k).append("\n");
+        for (String key :unfiltered.keySet()) {
+            List<String> temp =  unfiltered.get(key);
+            stringBuilder.append(key + "(" + temp.size() + "): ");
+            stringBuilder.append(temp).append("\n");
+        }
+        System.out.println(stringBuilder);
+    }
 }

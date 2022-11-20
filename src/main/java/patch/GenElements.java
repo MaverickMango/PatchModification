@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Set;
 
 public class GenElements {
-    private static final String buggyFileDir = "/home/liu/Desktop/groundtruth/buggyfiles/";
-    private static final String gtFileDir = "/home/liu/Desktop/groundtruth/groundtruth/";
+    public static final String buggyFileDir = "/home/liu/Desktop/groundtruth/buggyfiles/";
+    public static final String gtFileDir = "/home/liu/Desktop/groundtruth/groundtruth/";
 
     public static List<CtStatement> getStmts(String buggyfilePath, int pos) throws Exception {
         AstComparator comparator = new AstComparator();
@@ -112,6 +112,26 @@ public class GenElements {
     public static List<CtStatement> removeSame(List<CtStatement> nodes) {
 //        nodes = reverseList(nodes);
         List<CtStatement> newOne = new ArrayList<>();
+        for (CtStatement exp :nodes) {
+            int start = exp.getPosition().getLine();
+            int end = exp.getPosition().getEndLine();
+            if (!hasSame(newOne, start, end)) {
+                newOne.add(exp);
+            }
+        }
+        return newOne;
+    }
+    public static List<CtStatement> removeSame(List<CtStatement> nodes, List<Integer> poses) {
+//        nodes = reverseList(nodes);
+        List<CtStatement> newOne = new ArrayList<>();
+        if (poses.size() == 1) {
+            for (CtStatement exp :nodes) {
+                int start = exp.getPosition().getLine();
+                if (start == poses.get(0)){
+                    newOne.add(exp);
+                }
+            }
+        }
         for (CtStatement exp :nodes) {
             int start = exp.getPosition().getLine();
             int end = exp.getPosition().getEndLine();

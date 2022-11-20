@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Set;
 
 public class GroundTruth{
-    private List<CtElement> nodes = null; //actually one
+    private List<CtElement> nodes = null; 
     private String location = "";
     private String name = "";
     private int startLineNumber;
