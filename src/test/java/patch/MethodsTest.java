@@ -1,6 +1,8 @@
 package patch;
 
+import com.google.gson.*;
 import gumtree.spoon.FilterWithGT;
+import gumtree.spoon.diff.operations.Operation;
 import org.junit.Assert;
 import org.junit.Test;
 import spoon.reflect.code.*;
@@ -11,6 +13,182 @@ import java.io.IOException;
 import java.util.*;
 
 public class MethodsTest {
+
+    @Test
+    public void testParserJson() {
+        String base = "~/Desktop/";
+        String projsPath = base + "vbaprinfo/bugs4.txt";
+        String jsonPathDir = base + "VBAPRResult/";
+        List<String> proj_vList = FileTools.readEachLine(projsPath);
+
+
+        PVTotalBean totalBean = new PVTotalBean();
+        totalBean.setTotalProjs(proj_vList.size());
+        Map<String, Integer> operatorMap = new HashMap<>();
+        Map<String, Integer> changedCodeMap = new HashMap<>();
+        Map<String, Integer> fixCodeMap = new HashMap<>();
+
+        for (String proj_v : proj_vList) {
+            String proj = proj_v.split(":")[0];
+            String proj_l = proj.toLowerCase();
+            String[] ids = proj_v.split(":")[1].split(",");
+            totalBean.setTotalBugs(ids.length);
+            for (int i = 0; i < ids.length; i++) {
+                String jsonPath = jsonPathDir + proj + "/VBAPRMain-" + proj + "_" + ids[i] + "/astor_output.json";
+                String jsonstr = FileTools.readFileByLines(jsonPath);
+                if (jsonstr == null || jsonstr.equals(""))
+                    continue;
+                Gson gson = new Gson();
+                JsonObject jsonObject = gson.fromJson(jsonstr, JsonObject.class);
+                JsonArray jsonArray = jsonObject.get("patches").getAsJsonArray();
+                for (int j = 0; j < jsonArray.size(); j ++) {
+                    JsonObject patches = jsonArray.get(j).getAsJsonObject();
+                    JsonArray patchhunks = patches.getAsJsonArray("patchhunks");
+                    for (int k = 0; k < patchhunks.size(); k ++) {
+                        JsonObject operations = patchhunks.get(k).getAsJsonObject();
+                        String operator = operations.getAsJsonPrimitive("OPERATOR").getAsString();
+                        add2Map(operatorMap, operator);
+                        if (!operator.contains("Insert")) {
+                            String buggy = operations.getAsJsonPrimitive("BUGGY_CODE_TYPE").getAsString();
+                            add2Map(changedCodeMap, buggy);
+                        }
+                        if (!operator.contains("Remove")) {
+                            String fix = operations.getAsJsonPrimitive("PATCH_HUNK_TYPE").getAsString();
+                            add2Map(fixCodeMap, fix);
+                        }
+                    }
+                }
+            }
+        }
+        totalBean.setOperator(getTotalBean(operatorMap));
+        totalBean.setChangedCode(getTotalBean(changedCodeMap));
+        totalBean.setFixCode(getTotalBean(fixCodeMap));
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String totalString = gson.toJson(totalBean);
+        System.out.println(totalString);
+        FileTools.writeToFile(totalString, jsonPathDir + "total.json");
+    }
+
+    void add2Map(Map<String, Integer> map, String key) {
+        if (key.equals(""))
+            return;
+        if (!map.containsKey(key)) {
+            map.put(key, 0);
+        }
+        map.put(key, map.get(key) + 1);
+    }
+
+    List<TotalBean> getTotalBean(Map<String, Integer> map) {
+        List<TotalBean> list = new ArrayList<>();
+        for (String key : map.keySet()) {
+            TotalBean totalBean = new TotalBean(key);
+            totalBean.setTotal(map.get(key));
+            list.add(totalBean);
+        }
+        return list;
+    }
+
+    @Test
+    public void testGetComparisionActions() throws Exception {
+        String base = "/home/liumengjiao/Desktop/";
+        String infobase = base + "vbaprinfo/";
+        String patchedFileDir = base + "VBAPRResult/Defects4jProjs_fix/";
+        String buggyFileDir = infobase + "d4j_bug_info/buggyfiles/";
+        String projsPath = infobase + "bugs4.txt";
+        String srcPathDir = infobase + "d4j_bug_info/src_path/";
+        String clsPathDir = base + "defects4j/framework/projects/";
+        List<String> proj_vList = FileTools.readEachLine(projsPath);
+
+        PVActionBean pvaction = new PVActionBean();
+        pvaction.add2TotalProjs(proj_vList.size());
+
+        PVTotalBean totalBean = new PVTotalBean();
+        totalBean.setTotalProjs(proj_vList.size());
+        Map<String, Integer> operatorMap = new HashMap<>();
+        Map<String, Integer> changedCodeMap = new HashMap<>();
+        Map<String, Integer> fixCodeMap = new HashMap<>();
+
+        for (String proj_v : proj_vList) {
+            String proj = proj_v.split(":")[0];
+            String proj_l = proj.toLowerCase();
+            String[] ids = proj_v.split(":")[1].split(",");
+
+            pvaction.add2Totalbugs(ids.length);
+            totalBean.setTotalBugs(ids.length);
+
+            ProjActionBean projActionBean = new ProjActionBean(proj);
+            projActionBean.add2Totalbugs(ids.length);
+
+            for (int i = 0; i < ids.length; i++) {
+                ActionBean bugActionBean = new ActionBean(Integer.parseInt(ids[i]));
+
+                String src = FileTools.readOneLine(srcPathDir + proj_l + "/" + ids[i] + ".txt");
+                List<String> detailPath = FileTools.readEachLine(clsPathDir + proj + "/modified_classes/" + ids[i] + ".src");
+                for (String detail :detailPath) {
+                    detail = detail.replaceAll("\\.", "/");
+                    String path2fix = patchedFileDir + proj + "/" + proj + "_" + ids[i] + "/" + src + "/" + detail + ".java";
+                    String path2buggyDir = buggyFileDir + proj_l + "/" + proj_l + "_" + ids[i] + "_buggy/";
+                    String path2buggy = path2buggyDir + src + "/" + detail;
+
+                    FilterWithGT filter = new FilterWithGT();
+                    List<Operation> ops = filter.getActionsWithFile(new File(path2buggy + ".java"), new File(path2buggy + ".fix.java"));
+                    List<OperationBean> opbs = OperationGenerator.getOperationBeans(ops);
+                    if (opbs == null)
+                        continue;
+                    bugActionBean.setActions(opbs);
+
+                    for (OperationBean opb :opbs) {
+                        add2Map(operatorMap, opb.getType());
+                        add2Map(changedCodeMap, opb.getOrigin());
+                        add2Map(fixCodeMap, opb.getDestination());
+                    }
+                }
+                projActionBean.setActionBeans(bugActionBean);
+            }
+            pvaction.setActionBeans(projActionBean);
+        }
+        totalBean.setOperator(getTotalBean(operatorMap));
+        totalBean.setChangedCode(getTotalBean(changedCodeMap));
+        totalBean.setFixCode(getTotalBean(fixCodeMap));
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String actionString = gson.toJson(pvaction);
+        String totalString = gson.toJson(totalBean);
+        System.out.println(actionString);
+        System.out.println(totalString);
+        FileTools.writeToFile(actionString, infobase + "action.json");
+        FileTools.writeToFile(totalString, infobase + "total.json");
+    }
+
+    @Test
+    public void testGetFixFiles() throws Exception {
+        String base = "/home/liumengjiao/Desktop/";
+        String patchedFileDir = base + "VBAPRResult/Defects4jProjs_fix/";
+        String buggyFileDir = base + "vbaprinfo/d4j_bug_info/buggyfiles/";
+        String projsPath = base + "vbaprinfo/bugs4.txt";
+        String srcPathDir = base + "vbaprinfo/d4j_bug_info/src_path/";
+        String clsPathDir = base + "defects4j/framework/projects/";
+        List<String> proj_vList = FileTools.readEachLine(projsPath);
+        for (String proj_v : proj_vList) {
+            String proj = proj_v.split(":")[0];
+            String proj_l = proj.toLowerCase();
+            String[] ids = proj_v.split(":")[1].split(",");
+            for (int i = 0; i < ids.length; i++) {
+                String src = FileTools.readOneLine(srcPathDir + proj_l + "/" + ids[i] + ".txt");
+                List<String> detailPath = FileTools.readEachLine(clsPathDir + proj + "/modified_classes/" + ids[i] + ".src");
+                for (String detail :detailPath) {
+                    detail = detail.replaceAll("\\.", "/");
+                    String path2fix = patchedFileDir + proj + "/" + proj + "_" + ids[i] + "/" + src + "/" + detail + ".java";
+                    String path2buggyDir = buggyFileDir + proj_l + "/" + proj_l + "_" + ids[i] + "_buggy/";
+                    String path2buggy = path2buggyDir + src + "/" + detail;
+                    System.out.println(proj + "_" + ids[i]);
+                    String patchPath = clsPathDir + proj + "/patches/" + ids[i] + ".src.patch";
+//                    CommandUtil.run("cp " + patchPath + " " + path2buggyDir );
+                }
+            }
+        }
+    }
 
     @Test
     public void testgetStmts() throws Exception {

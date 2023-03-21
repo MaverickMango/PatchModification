@@ -12,7 +12,14 @@ public class FileTools {
         Iterator iterator = keySet.iterator();
         while(iterator.hasNext()) {
             Object obj = iterator.next();
-            System.out.println("<" + obj + ", " + map.get(obj) + ">");
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append("<").append(obj).append(", ");
+            Object value = map.get(obj);
+            if (value instanceof Collection)
+                stringBuilder.append(((Collection<?>) value).size()).append("-");
+            stringBuilder.append(value).append(">");
+            System.out.println(stringBuilder);
+            System.out.println();
         }
     }
 
@@ -122,6 +129,27 @@ public class FileTools {
         return list;
     }
 
+    public static String readOneLine(String fileName) {
+        File file = new File(fileName);
+        BufferedReader reader = null;
+
+        String res = null;
+        try {
+            reader = new BufferedReader(new FileReader(file));
+            res = reader.readLine();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e1) {
+                }
+            }
+        }
+        return res == null ? "" : res;
+    }
+
 
     /**
      * 读取predicates列表
@@ -208,4 +236,8 @@ public class FileTools {
         return paths;
     }
 
+    public static boolean isFileExist(String filePath) {
+        File file = new File(filePath);
+        return file.exists();
+    }
 }

@@ -36,6 +36,8 @@ public class FilterWithGT {
     }
 
     public List<Operation> getActionsWithFile(File buggyFilePath, File repairFilePath) throws Exception {
+        if (!buggyFilePath.exists() || !repairFilePath.exists())
+            return null;
         AstComparator diff = new AstComparator();
         Diff result = diff.compare(buggyFilePath, repairFilePath);
         return result.getRootOperations();
