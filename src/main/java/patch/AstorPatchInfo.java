@@ -1,5 +1,8 @@
 package patch;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class AstorPatchInfo {
     private String proj;
     private String id;
@@ -8,12 +11,14 @@ public class AstorPatchInfo {
     private int patchSize;
     private double totalTime;
     private double engineCreationTime;
+    private Map<String, Integer> operatorSize;
 
     public AstorPatchInfo(String proj, String id, String mappingIdx) {
         this.proj = proj;
         this.id = id;
         this.mappingIdx = mappingIdx;
         this.testSuccess = false;
+        this.operatorSize = new HashMap<>();
     }
 
     public AstorPatchInfo(String proj, String id, String mappingIdx, boolean testSuccess, boolean patchGen, int patchSize, double totalTime, double engineCreationTime) {
@@ -24,6 +29,23 @@ public class AstorPatchInfo {
         this.patchSize = patchSize;
         this.totalTime = totalTime;
         this.engineCreationTime = engineCreationTime;
+        this.operatorSize = new HashMap<>();
+    }
+
+    public int getOperatorSize(String key) {
+        if (operatorSize.containsKey(key))
+            return operatorSize.get(key);
+        return 0;
+    }
+
+    public Map<String, Integer> getOperatorSizeMap() {
+        return operatorSize;
+    }
+    public void setOperatorSize(String key, int value) {
+        operatorSize.put(key, value);
+    }
+    public void addOperatorSize(String key) {
+        operatorSize.put(key, getOperatorSize(key) + 1);
     }
 
     public String getProj() {

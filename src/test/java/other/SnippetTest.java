@@ -15,21 +15,16 @@ public class SnippetTest {
     @Test
     public void testPatchesNums() {
         String buggyBase = "/home/liumengjiao/Desktop/";
-        String repairBase = "VBAPRResult_exhausted_noEdit_compiled/";
-        String proj = "Math";
-        String id = "11";
+        String repairBase = "VBAPRResult_exhausted_Edit_compiled/";
+        String proj = "Lang";
+        String id = "27";
         String output_file = buggyBase + repairBase + proj + "/VBAPRMain-" + proj + "_" + id + "/astor_output.json";
         JsonElement jsonElement = new JsonParser().parse(FileTools.readFileByLines(output_file));
         System.out.println(proj + "_" + id);
         outputPatchStats(jsonElement);
     }
 
-    void outputPatchStats(JsonElement jsonElement) {
-        JsonObject jsonObject = jsonElement.getAsJsonObject();
-        List<String> samePatchBugs = new ArrayList<>();
-        List<String> duplicatePatch = new ArrayList<>();
-        Map<String, Set<String>> oriFinalMap = new HashMap<>();
-        JsonArray patches = jsonObject.getAsJsonArray("patches");
+    void getPatchStats(JsonArray patches, Map<String, Set<String>> oriFinalMap, List<String> samePatchBugs, List<String> duplicatePatch) {
         for (int i = 0; i < patches.size(); i ++) {
             JsonObject patch = patches.get(i).getAsJsonObject();
             JsonArray patchhunks = patch.getAsJsonArray("patchhunks");
@@ -57,6 +52,15 @@ public class SnippetTest {
             }
             oriFinalMap.get(key).add(patchStr);
         }
+    }
+
+    void outputPatchStats(JsonElement jsonElement) {
+        JsonObject jsonObject = jsonElement.getAsJsonObject();
+        JsonArray patches = jsonObject.getAsJsonArray("patches");
+        Map<String, Set<String>> oriFinalMap = new HashMap<>();
+        List<String> samePatchBugs = new ArrayList<>();
+        List<String> duplicatePatch = new ArrayList<>();
+        getPatchStats(patches, oriFinalMap, samePatchBugs, duplicatePatch);
         System.out.println("补丁总数：" + patches.size());
         System.out.println("----------补丁修改位置及其修复代码----------");
         FileTools.outputMap(oriFinalMap);
@@ -67,11 +71,7 @@ public class SnippetTest {
         System.out.println(duplicatePatch);
     }
 
-
-    @Test
-    public void testBugsStats() {
-        String buggyBase = "/home/liumengjiao/Desktop/";
-        String repairBase = "VBAPRResult/";
+    List<AstorPatchInfo> getPatchInfos(String buggyBase, String repairBase) {
         List<String> mapping = FileTools.readEachLine(buggyBase + repairBase + "/mapping");
         List<String> success = Arrays.asList(FileTools.readOneLine(buggyBase + repairBase + "/success_bugs").split(","));
         List<String> proj_ids = new ArrayList<>();
@@ -92,13 +92,110 @@ public class SnippetTest {
                 continue;
             }
 //            if (!Arrays.asList(failed).contains(i))
+            patchInfo.setTestSuccess(true);
+
+            JsonElement jsonElement = new JsonParser().parse(FileTools.readFileByLines(output_file));
+            JsonObject jsonObject = jsonElement.getAsJsonObject();
+            JsonArray patches = jsonObject.getAsJsonArray("patches");
+            Map<String, Set<String>> oriFinalMap = new HashMap<>();
+            List<String> samePatchBugs = new ArrayList<>();
+            List<String> duplicatePatch = new ArrayList<>();
+            getPatchStats(patches, oriFinalMap, samePatchBugs, duplicatePatch);
+
+            patchInfo.setPatchSize(patches.size());
+            for (Map.Entry<String, Set<String>> map: oriFinalMap.entrySet()) {
+                patchInfo.setOperatorSize(map.getKey(), map.getValue().size());
+            }
+
+            JsonObject general = jsonObject.getAsJsonObject("general");
+            double total_time = general.getAsJsonPrimitive("TOTAL_TIME").getAsDouble();
+            double engine_creation_time = general.getAsJsonPrimitive("ENGINE_CREATION_TIME") != null ?
+                    general.getAsJsonPrimitive("ENGINE_CREATION_TIME").getAsDouble() : 0;
+            patchInfo.setTotalTime(total_time);
+            patchInfo.setEngineCreationTime(engine_creation_time);
+        }
+        return patchInfos;
+    }
+
+    @Test
+    public void testOperation() {
+        String buggyBase = "/home/liumengjiao/Desktop/";
+        String repairBase = "VBAPRResult_exhausted_Edit_compiled/";
+        String repairBase1 = "VBAPRResult/";
+        List<AstorPatchInfo> patchInfos = getPatchInfos(buggyBase, repairBase);
+        List<AstorPatchInfo> patchInfos1 = getPatchInfos(buggyBase, repairBase1);
+        int sum = 0;
+        int num = 0;
+        Map<String, Integer> deduceMap = new HashMap<>();
+        for (int i = 0; i < patchInfos.size(); i ++ ) {
+            AstorPatchInfo patchInfo = patchInfos.get(i);
+            List<AstorPatchInfo> patchInfo1 = patchInfos1.stream().filter(e -> e.getProj().equals(patchInfo.getProj()) && e.getId().equals(patchInfo.getId())).collect(Collectors.toList());
+            assert patchInfo1.size() == 1;
+            Map<String, Integer> map1 = patchInfo1.get(0).getOperatorSizeMap();
+            for (Map.Entry<String, Integer> entry1 : map1.entrySet()) {
+                String key = entry1.getKey();
+                if (!key.contains("Insert"))
+                    continue;
+                num += 1;
+                int size1 = entry1.getValue();
+                int size = patchInfo.getOperatorSize(key);
+                int deduce = size - size1;
+                sum += deduce;
+                if (!deduceMap.containsKey(patchInfo.getProj() + patchInfo.getId())) {
+                    deduceMap.put(patchInfo.getProj() + patchInfo.getId(), 0);
+                }
+                deduceMap.put(patchInfo.getProj() + patchInfo.getId(), deduceMap.get(patchInfo.getProj() + patchInfo.getId()) + deduce);
+//                System.out.println(patchInfo.getProj() + patchInfo.getId() + ": " + deduce);
+            }
+        }
+        System.out.println((double)sum / num);
+//        FileTools.outputMap(deduceMap);
+        System.out.println(deduceMap.size());
+        System.out.println("zero deduce: " + deduceMap.values().stream().filter(o -> o == 0).count());
+        System.out.println("deduce: " + deduceMap.values().stream().filter(o -> o > 0).count());
+        System.out.println("ascend: " + deduceMap.values().stream().filter(o -> o < 0).count());
+        System.out.println(deduceMap.values().stream().filter(o -> o < 0).mapToDouble(o -> o).sum() / 16);
+    }
+
+
+    @Test
+    public void testBugsStats() {
+        String buggyBase = "/home/liumengjiao/Desktop/";
+        String repairBase = "VBAPRResult_exhausted_Edit_compiled/";
+        List<String> mapping = FileTools.readEachLine(buggyBase + repairBase + "/mapping");
+        List<String> success = Arrays.asList(FileTools.readOneLine(buggyBase + repairBase + "/success_bugs").split(","));
+        List<String> proj_ids = new ArrayList<>();
+        for (String map :mapping) {
+            String[] temp = map.split(",");
+            if (success.contains(temp[0]))//successful bugs condition: success.contains(temp[0])；failed bugs condition: !success.contains(temp[0])
+                proj_ids.add(temp[1] + "_" + temp[2]);
+        }
+        Integer[] failed = {4,7,16,18,20,21,23,34,37,38,40};
+        List<AstorPatchInfo> patchInfos = new ArrayList<>();
+        for (int i = 0; i < proj_ids.size(); i++) {
+            String proj_id = proj_ids.get(i);
+            AstorPatchInfo patchInfo = new AstorPatchInfo(proj_id.split("_")[0], proj_id.split("_")[1], success.get(i));
+            patchInfos.add(patchInfo);
+            String output_file = buggyBase + repairBase + proj_id.split("_")[0] + "/VBAPRMain-" + proj_id + "/astor_output.json";
+            if (!FileTools.isFileExist(output_file)) {//
+                patchInfo.setTestSuccess(false);
+                continue;
+            }
+            if (!Arrays.asList(failed).contains(i))
                 patchInfo.setTestSuccess(true);
 
             JsonElement jsonElement = new JsonParser().parse(FileTools.readFileByLines(output_file));
             JsonObject jsonObject = jsonElement.getAsJsonObject();
             JsonArray patches = jsonObject.getAsJsonArray("patches");
+            Map<String, Set<String>> oriFinalMap = new HashMap<>();
+            List<String> samePatchBugs = new ArrayList<>();
+            List<String> duplicatePatch = new ArrayList<>();
+            getPatchStats(patches, oriFinalMap, samePatchBugs, duplicatePatch);
 
             patchInfo.setPatchSize(patches.size());
+            for (Map.Entry<String, Set<String>> map: oriFinalMap.entrySet()) {
+                patchInfo.setOperatorSize(map.getKey(), map.getValue().size());
+            }
 
             JsonObject general = jsonObject.getAsJsonObject("general");
             double total_time = general.getAsJsonPrimitive("TOTAL_TIME").getAsDouble();
@@ -110,6 +207,7 @@ public class SnippetTest {
             System.out.println("补丁总数：" + patches.size());
             System.out.println("补丁生成时间：" + total_time);
             System.out.println("准备时间：" + engine_creation_time);
+
         }
         int successCount = (int) patchInfos.stream().filter(AstorPatchInfo::isTestSuccess).count();
         double totalTimes = patchInfos.stream().filter(AstorPatchInfo::isTestSuccess).mapToDouble(AstorPatchInfo::getTotalTime).sum();
