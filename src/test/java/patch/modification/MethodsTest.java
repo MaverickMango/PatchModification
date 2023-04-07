@@ -1,10 +1,11 @@
-package patch;
+package patch.modification;
 
 import com.google.gson.*;
 import gumtree.spoon.FilterWithGT;
 import gumtree.spoon.diff.operations.Operation;
 import org.junit.Assert;
 import org.junit.Test;
+import patch.*;
 import spoon.reflect.code.*;
 import spoon.reflect.declaration.*;
 

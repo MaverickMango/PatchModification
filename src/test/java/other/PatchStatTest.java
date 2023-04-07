@@ -5,19 +5,17 @@ import org.junit.Test;
 import patch.AstorPatchInfo;
 import patch.FileTools;
 
-import java.io.File;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-public class SnippetTest {
+public class PatchStatTest {
 
     @Test
     public void testPatchesNums() {
         String buggyBase = "/home/liumengjiao/Desktop/";
-        String repairBase = "VBAPRResult_exhausted_Edit_compiled/";
-        String proj = "Lang";
-        String id = "27";
+        String repairBase = "VBAPRResult/";//_exhausted_Edit4Exp_compiled
+        String proj = "Math";
+        String id = "33";
         String output_file = buggyBase + repairBase + proj + "/VBAPRMain-" + proj + "_" + id + "/astor_output.json";
         JsonElement jsonElement = new JsonParser().parse(FileTools.readFileByLines(output_file));
         System.out.println(proj + "_" + id);
@@ -25,17 +23,17 @@ public class SnippetTest {
     }
 
     void getPatchStats(JsonArray patches, Map<String, Set<String>> oriFinalMap, List<String> samePatchBugs, List<String> duplicatePatch) {
-        for (int i = 0; i < patches.size(); i ++) {
+        for (int i = 0; i < patches.size(); i++) {
             JsonObject patch = patches.get(i).getAsJsonObject();
             JsonArray patchhunks = patch.getAsJsonArray("patchhunks");
             assert patchhunks.size() > 0;
             JsonObject first = patchhunks.get(0).getAsJsonObject();
             JsonPrimitive original_code = first.getAsJsonPrimitive("ORIGINAL_CODE");
             JsonPrimitive patchhunk_code = first.getAsJsonPrimitive("PATCH_HUNK_CODE");
-            if(patchhunks.size() > 1) {
+            if (patchhunks.size() > 1) {
                 patchhunk_code = ((JsonObject) patchhunks.get(patchhunks.size() - 1)).getAsJsonPrimitive("PATCH_HUNK_CODE");
             }
-            JsonPrimitive patchID  = patch.getAsJsonPrimitive("VARIANT_ID");
+            JsonPrimitive patchID = patch.getAsJsonPrimitive("VARIANT_ID");
 
             String key = getKey(original_code, first.getAsJsonPrimitive("OPERATOR"), first.getAsJsonPrimitive("LINE"));
             String patchStr = patchhunk_code == null ? "" : patchhunk_code.getAsString();
@@ -75,12 +73,12 @@ public class SnippetTest {
         List<String> mapping = FileTools.readEachLine(buggyBase + repairBase + "/mapping");
         List<String> success = Arrays.asList(FileTools.readOneLine(buggyBase + repairBase + "/success_bugs").split(","));
         List<String> proj_ids = new ArrayList<>();
-        for (String map :mapping) {
+        for (String map : mapping) {
             String[] temp = map.split(",");
             if (success.contains(temp[0]))//successful bugs condition: success.contains(temp[0])；failed bugs condition: !success.contains(temp[0])
                 proj_ids.add(temp[1] + "_" + temp[2]);
         }
-        Integer[] failed = {4,7,16,18,20,21,23,34,37,38,40};
+        Integer[] failed = {4, 7, 16, 18, 20, 21, 23, 34, 37, 38, 40};
         List<AstorPatchInfo> patchInfos = new ArrayList<>();
         for (int i = 0; i < proj_ids.size(); i++) {
             String proj_id = proj_ids.get(i);
@@ -103,7 +101,7 @@ public class SnippetTest {
             getPatchStats(patches, oriFinalMap, samePatchBugs, duplicatePatch);
 
             patchInfo.setPatchSize(patches.size());
-            for (Map.Entry<String, Set<String>> map: oriFinalMap.entrySet()) {
+            for (Map.Entry<String, Set<String>> map : oriFinalMap.entrySet()) {
                 patchInfo.setOperatorSize(map.getKey(), map.getValue().size());
             }
 
@@ -120,14 +118,14 @@ public class SnippetTest {
     @Test
     public void testOperation() {
         String buggyBase = "/home/liumengjiao/Desktop/";
-        String repairBase = "VBAPRResult_exhausted_Edit_compiled/";
+        String repairBase = "VBAPRResult_exhausted_Edit4Exp_compiled/";
         String repairBase1 = "VBAPRResult/";
         List<AstorPatchInfo> patchInfos = getPatchInfos(buggyBase, repairBase);
         List<AstorPatchInfo> patchInfos1 = getPatchInfos(buggyBase, repairBase1);
         int sum = 0;
         int num = 0;
         Map<String, Integer> deduceMap = new HashMap<>();
-        for (int i = 0; i < patchInfos.size(); i ++ ) {
+        for (int i = 0; i < patchInfos.size(); i++) {
             AstorPatchInfo patchInfo = patchInfos.get(i);
             List<AstorPatchInfo> patchInfo1 = patchInfos1.stream().filter(e -> e.getProj().equals(patchInfo.getProj()) && e.getId().equals(patchInfo.getId())).collect(Collectors.toList());
             assert patchInfo1.size() == 1;
@@ -145,16 +143,15 @@ public class SnippetTest {
                     deduceMap.put(patchInfo.getProj() + patchInfo.getId(), 0);
                 }
                 deduceMap.put(patchInfo.getProj() + patchInfo.getId(), deduceMap.get(patchInfo.getProj() + patchInfo.getId()) + deduce);
-//                System.out.println(patchInfo.getProj() + patchInfo.getId() + ": " + deduce);
+                System.out.println(patchInfo.getProj() + patchInfo.getId() + ": " + deduce);
             }
         }
-        System.out.println((double)sum / num);
+        System.out.println((double) sum / num);
 //        FileTools.outputMap(deduceMap);
         System.out.println(deduceMap.size());
         System.out.println("zero deduce: " + deduceMap.values().stream().filter(o -> o == 0).count());
-        System.out.println("deduce: " + deduceMap.values().stream().filter(o -> o > 0).count());
-        System.out.println("ascend: " + deduceMap.values().stream().filter(o -> o < 0).count());
-        System.out.println(deduceMap.values().stream().filter(o -> o < 0).mapToDouble(o -> o).sum() / 16);
+        System.out.println("deduce: " + deduceMap.values().stream().filter(o -> o < 0).count());
+        System.out.println("ascend: " + deduceMap.values().stream().filter(o -> o > 0).count());
     }
 
 
@@ -165,12 +162,12 @@ public class SnippetTest {
         List<String> mapping = FileTools.readEachLine(buggyBase + repairBase + "/mapping");
         List<String> success = Arrays.asList(FileTools.readOneLine(buggyBase + repairBase + "/success_bugs").split(","));
         List<String> proj_ids = new ArrayList<>();
-        for (String map :mapping) {
+        for (String map : mapping) {
             String[] temp = map.split(",");
             if (success.contains(temp[0]))//successful bugs condition: success.contains(temp[0])；failed bugs condition: !success.contains(temp[0])
                 proj_ids.add(temp[1] + "_" + temp[2]);
         }
-        Integer[] failed = {4,7,16,18,20,21,23,34,37,38,40};
+        Integer[] failed = {4, 7, 16, 18, 20, 21, 23, 34, 37, 38, 40};
         List<AstorPatchInfo> patchInfos = new ArrayList<>();
         for (int i = 0; i < proj_ids.size(); i++) {
             String proj_id = proj_ids.get(i);
@@ -193,7 +190,7 @@ public class SnippetTest {
             getPatchStats(patches, oriFinalMap, samePatchBugs, duplicatePatch);
 
             patchInfo.setPatchSize(patches.size());
-            for (Map.Entry<String, Set<String>> map: oriFinalMap.entrySet()) {
+            for (Map.Entry<String, Set<String>> map : oriFinalMap.entrySet()) {
                 patchInfo.setOperatorSize(map.getKey(), map.getValue().size());
             }
 
@@ -215,7 +212,7 @@ public class SnippetTest {
         double engineCreationTimes = patchInfos.stream().filter(AstorPatchInfo::isTestSuccess).mapToDouble(AstorPatchInfo::getEngineCreationTime).sum();
         int totalPatches = patchInfos.stream().filter(AstorPatchInfo::isTestSuccess).filter(AstorPatchInfo::isPatchGen).mapToInt(AstorPatchInfo::getPatchSize).sum();
         System.out.println("--------------------");
-        System.out.println("bug总数：" +  patchInfos.size());
+        System.out.println("bug总数：" + patchInfos.size());
         System.out.println("成功运行数：" + successCount);
         System.out.println("平均准备时间：" + engineCreationTimes / successCount);
         System.out.println("平均补丁生成时间：" + totalTimes / successCount);

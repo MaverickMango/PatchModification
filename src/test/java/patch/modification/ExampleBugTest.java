@@ -1,8 +1,10 @@
-package patch;
+package patch.modification;
 
 import gumtree.spoon.FilterWithGT;
 import org.junit.Assert;
 import org.junit.Test;
+import patch.FileTools;
+import patch.GenElements;
 
 import java.io.File;
 import java.util.ArrayList;

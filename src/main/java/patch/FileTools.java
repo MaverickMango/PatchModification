@@ -2,32 +2,58 @@ package patch;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class FileTools {
 
+    public static String formatSeperatar(String filePath) {
+        return filePath.replaceAll("/", File.separator);
+    }
 
-    public static void outputMap(Map map) {
+    public static StringBuilder getMap2String(Map map) {
         Set keySet = map.keySet();
         Iterator iterator = keySet.iterator();
+        StringBuilder stringBuilder = new StringBuilder();
         while(iterator.hasNext()) {
             Object obj = iterator.next();
-            StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.append("<").append(obj).append(", ");
             Object value = map.get(obj);
             if (value instanceof Collection)
                 stringBuilder.append(((Collection<?>) value).size()).append("-");
-            stringBuilder.append(value).append(">");
-            System.out.println(stringBuilder);
-            System.out.println();
+            stringBuilder.append(value).append(">").append("\n");
         }
+        return stringBuilder;
+    }
+
+    public static void outputMap(Map map) {
+        System.out.println(getMap2String(map).toString());
+    }
+
+    public static void outputMap2File(Map map, String filePath, boolean append) {
+        StringBuilder stringBuilder = getMap2String(map);
+        FileTools.writeToFile(stringBuilder.toString(), filePath, append);
     }
 
 
-    public static void writeToFile(String content, String filename) {
+    public static void writeToFile(String content, String filename, boolean append) {
+        filename = formatSeperatar(filename);
         BufferedOutputStream buff =null;
         try {
-            buff = new BufferedOutputStream(new FileOutputStream(filename));
+            buff = new BufferedOutputStream(new FileOutputStream(filename, append));
+            buff.write(content.getBytes(StandardCharsets.UTF_8));
+            buff.flush();
+            buff.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public static void writeToFile(String content, String filename) {
+        filename = formatSeperatar(filename);
+        BufferedOutputStream buff =null;
+        try {
+            buff = new BufferedOutputStream(Files.newOutputStream(Paths.get(filename)));
             buff.write(content.getBytes(StandardCharsets.UTF_8));
             buff.flush();
             buff.close();
@@ -37,6 +63,7 @@ public class FileTools {
     }
 
     public static char[] readFileByChars(String fileName) {
+        fileName = formatSeperatar(fileName);
         File file = new File(fileName);
         Reader reader = null;
         StringBuilder sb = new StringBuilder();
@@ -80,6 +107,7 @@ public class FileTools {
      * 文件读取 去掉换行符
      */
     public static String readFileByLines(String fileName) {
+        fileName = formatSeperatar(fileName);
         File file = new File(fileName);
         BufferedReader reader = null;
         StringBuilder sb = new StringBuilder();
@@ -106,6 +134,7 @@ public class FileTools {
     }
 
     public static List<String> readEachLine(String fileName) {
+        fileName = formatSeperatar(fileName);
         File file = new File(fileName);
         BufferedReader reader = null;
 
@@ -130,6 +159,7 @@ public class FileTools {
     }
 
     public static String readOneLine(String fileName) {
+        fileName = formatSeperatar(fileName);
         File file = new File(fileName);
         BufferedReader reader = null;
 
@@ -157,6 +187,7 @@ public class FileTools {
      * @return 谓词表达式
      */
     public static List<String> readPredicates(String fileName) {
+        fileName = formatSeperatar(fileName);
         File file = new File(fileName);
         BufferedReader reader = null;
 
@@ -187,6 +218,7 @@ public class FileTools {
      * @return String[]
      */
     public static List<String> getFilePaths(String fileDir, String postfix) {
+        fileDir = formatSeperatar(fileDir);
         List<String> paths = new ArrayList<>();
         //读取输入路径的文件
         File[] list = new File(fileDir).listFiles();
@@ -206,6 +238,7 @@ public class FileTools {
         return paths;
     }
     public static List<String> getFilePath(String fileDir, String postfix) {
+        fileDir = formatSeperatar(fileDir);
         List<String> paths = new ArrayList<>();
         //读取输入路径的文件
         File[] list = new File(fileDir).listFiles();
@@ -224,6 +257,7 @@ public class FileTools {
     }
 
     public static List<String> getDirNames(String fileDir) {
+        fileDir = formatSeperatar(fileDir);
         List<String> paths = new ArrayList<>();
         //读取输入路径的文件
         File[] list = new File(fileDir).listFiles();
@@ -237,7 +271,54 @@ public class FileTools {
     }
 
     public static boolean isFileExist(String filePath) {
+        filePath = formatSeperatar(filePath);
         File file = new File(filePath);
         return file.exists();
+    }
+
+    public static List<String> execute(String[] command) {
+        Process process = null;
+        final List<String> message = new ArrayList<String>();
+        try {
+            ProcessBuilder builder = new ProcessBuilder(command);
+            builder.redirectErrorStream(true);
+            process = builder.start();
+            final InputStream inputStream = process.getInputStream();
+
+            Thread processReader = new Thread(){
+                public void run() {
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+                    String line;
+                    try {
+                        while((line = reader.readLine()) != null) {
+                            message.add(line);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    try {
+                        reader.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
+
+            processReader.start();
+            try {
+                processReader.join();
+                process.waitFor();
+            } catch (InterruptedException e) {
+                return new LinkedList<>();
+            }
+        } catch (IOException e) {
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+            process = null;
+        }
+
+        return message;
     }
 }

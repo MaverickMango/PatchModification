@@ -1,7 +1,10 @@
-package patch;
+package patch.modification;
 
 import gumtree.spoon.FilterWithGT;
 import org.junit.Test;
+import patch.FileTools;
+import patch.ReadGT;
+import patch.ReadTopN;
 
 import java.io.BufferedReader;
 import java.io.File;
